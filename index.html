@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Play Gomoku (오목) online with friends. Create a room, share the code, and play!">
+  <title>Omok Online - Play Gomoku with Friends</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1203595880043680" crossorigin="anonymous"></script>
+</head>
+<body>
+  <nav>
+    <a href="index.html" class="logo">Omok Online</a>
+    <div class="nav-links">
+      <a href="index.html" class="active">Play</a>
+      <a href="rules.html">Rules</a>
+      <a href="strategy.html">Strategy</a>
+      <a href="faq.html">FAQ</a>
+      <a href="about.html">About</a>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <h1>Omok Online</h1>
+    <p>Play Gomoku with your friends in real-time. Create a room or join with a code!</p>
+  </div>
+
+  <div class="container">
+    <!-- Ad Banner Top -->
+    <div class="ad-banner" id="ad-top">Advertisement</div>
+
+    <!-- Nickname -->
+    <div class="nickname-section">
+      <input type="text" id="nickname" placeholder="Enter your nickname" maxlength="20">
+    </div>
+
+    <!-- Create / Join -->
+    <div class="lobby-grid">
+      <div class="card">
+        <h2>Create Room</h2>
+        <p style="color:var(--text-dim);margin-bottom:16px">Start a new game and invite your friend with a room code.</p>
+        <button class="btn btn-primary" id="create-btn" style="width:100%">Create Room</button>
+      </div>
+
+      <div class="card">
+        <h2>Join Room</h2>
+        <p style="color:var(--text-dim);margin-bottom:16px">Enter the 6-digit room code from your friend.</p>
+        <div class="flex gap-8">
+          <input type="text" id="join-code" placeholder="Enter code (e.g. ABC123)" maxlength="6" style="text-transform:uppercase;letter-spacing:2px;font-family:monospace">
+          <button class="btn btn-primary" id="join-btn">Join</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Room List -->
+    <div class="room-list">
+      <h2 style="margin-bottom:16px">Open Rooms</h2>
+      <div id="room-list">
+        <p style="color:var(--text-dim);text-align:center;padding:20px">Loading rooms...</p>
+      </div>
+    </div>
+
+    <!-- Ad Banner Bottom -->
+    <div class="ad-banner" id="ad-bottom">Advertisement</div>
+  </div>
+
+  <footer>
+    <div class="footer-links">
+      <a href="rules.html">Rules</a>
+      <a href="strategy.html">Strategy</a>
+      <a href="faq.html">FAQ</a>
+      <a href="about.html">About</a>
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="terms.html">Terms of Service</a>
+    </div>
+    <p>&copy; 2026 Omok Online. All rights reserved.</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/lobby.js"></script>
+</body>
+</html>

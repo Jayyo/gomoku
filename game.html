@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game - Omok Online</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1203595880043680" crossorigin="anonymous"></script>
+</head>
+<body>
+  <nav>
+    <a href="index.html" class="logo">Omok Online</a>
+    <div class="nav-links">
+      <a href="index.html">Lobby</a>
+      <a href="rules.html">Rules</a>
+      <a href="strategy.html">Strategy</a>
+    </div>
+  </nav>
+
+  <div class="game-container">
+    <div class="board-wrapper">
+      <div id="board"></div>
+    </div>
+
+    <div class="game-info">
+      <h3>Game Info</h3>
+
+      <div class="player-info" id="black-info">
+        <div class="player-stone black"></div>
+        <span id="black-name">Black</span>
+      </div>
+
+      <div class="player-info" id="white-info">
+        <div class="player-stone white"></div>
+        <span id="white-name">White</span>
+      </div>
+
+      <div class="turn-indicator" id="turn-indicator">
+        Waiting...
+      </div>
+
+      <button class="btn btn-secondary btn-small mt-16" style="width:100%" onclick="leaveRoom()">
+        Leave Game
+      </button>
+
+      <!-- Ad in game sidebar -->
+      <div class="ad-banner mt-16" id="ad-game">Advertisement</div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-links">
+      <a href="rules.html">Rules</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+    </div>
+    <p>&copy; 2026 Omok Online</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
