@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hall of Fame - MOKU.IO</title>
+  <meta name="description" content="MOKU.IO Hall of Fame - Enshrined victories, epic matches, and legendary plays.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="theme-color" content="#0F172A">
+  <link rel="stylesheet" href="css/style.css">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1203595880043680" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">MOKU.IO</a>
+  <div class="nav-links">
+    <a href="index.html" data-i18n="play">Play</a>
+    <a href="rules.html" data-i18n="rules">Rules</a>
+    <a href="strategy.html" data-i18n="strategy">Strategy</a>
+    <a href="hall.html" class="active" data-i18n="hall_of_fame">Hall of Fame</a>
+    <a href="about.html" data-i18n="about">About</a>
+    <button class="lang-toggle" id="lang-toggle" onclick="I18n.setLang(I18n.getLang()==='en'?'ko':'en')">한국어</button>
+    <button class="sound-toggle" id="sound-toggle" onclick="toggleSound()" title="Toggle Sound">🔊</button>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="hero" style="padding:40px 20px 30px;">
+    <h1 data-i18n="hall_title">Hall of Fame</h1>
+  </div>
+
+  <div class="ad-container" id="ad-top"></div>
+
+  <div id="hall-list">
+    <p class="empty-msg" data-i18n="loading_rooms">Loading...</p>
+  </div>
+
+  <div class="ad-container" id="ad-bottom"></div>
+</div>
+
+<footer>
+  <div class="footer-links">
+    <a href="index.html" data-i18n="play">Play</a>
+    <a href="rules.html" data-i18n="rules">Rules</a>
+    <a href="strategy.html" data-i18n="strategy">Strategy</a>
+    <a href="about.html" data-i18n="about">About</a>
+    <a href="privacy.html" data-i18n="privacy">Privacy Policy</a>
+    <a href="terms.html" data-i18n="terms">Terms of Service</a>
+  </div>
+  <p data-i18n="copyright">&copy; 2026 MOKU.IO. All rights reserved.</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js?v=3"></script>
+<script src="js/i18n.js"></script>
+<script src="js/lang/en.js"></script>
+<script src="js/lang/ko.js"></script>
+<script src="js/shared.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/hall.js"></script>
+<script>
+  function toggleSound() {
+    const on = Sound.toggle();
+    document.getElementById('sound-toggle').textContent = on ? '🔊' : '🔇';
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('sound-toggle').textContent = Sound.isEnabled() ? '🔊' : '🔇';
+  });
+</script>
+</body>
+</html>

@@ -1,19 +1,23 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Game - Omok Online</title>
+  <title>Game - MOKU.IO</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="theme-color" content="#0F172A">
   <link rel="stylesheet" href="css/style.css">
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1203595880043680" crossorigin="anonymous"></script>
 </head>
 <body>
   <nav>
-    <a href="index.html" class="logo">Omok Online</a>
+    <a href="index.html" class="logo">MOKU.IO</a>
     <div class="nav-links">
-      <a href="index.html">Lobby</a>
-      <a href="rules.html">Rules</a>
-      <a href="strategy.html">Strategy</a>
+      <a href="index.html" data-i18n="lobby">Lobby</a>
+      <a href="rules.html" data-i18n="rules">Rules</a>
+      <a href="hall.html" data-i18n="hall_of_fame">Hall of Fame</a>
+      <button class="lang-toggle" id="lang-toggle" onclick="I18n.setLang(I18n.getLang()==='en'?'ko':'en')">한국어</button>
+      <button class="sound-toggle" id="sound-toggle" onclick="toggleSound()" title="Toggle Sound">🔊</button>
     </div>
   </nav>
 
@@ -23,7 +27,10 @@
     </div>
 
     <div class="game-info">
-      <h3>Game Info</h3>
+      <h3 data-i18n="game_info">Game Info</h3>
+
+      <!-- Rules badge -->
+      <div id="rules-badge" class="rules-badge freestyle">Freestyle</div>
 
       <div class="player-info" id="black-info">
         <div class="player-stone black"></div>
@@ -35,30 +42,61 @@
         <span id="white-name">White</span>
       </div>
 
-      <div class="turn-indicator" id="turn-indicator">
+      <div class="turn-indicator" id="turn-indicator" data-i18n="waiting">
         Waiting...
       </div>
 
-      <button class="btn btn-secondary btn-small mt-16" style="width:100%" onclick="leaveRoom()">
+      <!-- Bet display (shown when bet exists) -->
+      <div class="game-bet-display hidden" id="bet-display">
+        <div class="bet-label" data-i18n="bet_label">BET</div>
+        <div class="bet-content" id="bet-content"></div>
+      </div>
+
+      <button class="btn btn-secondary btn-small mt-16" style="width:100%" onclick="leaveRoom()" data-i18n="leave_game">
         Leave Game
       </button>
 
-      <!-- Ad in game sidebar -->
-      <div class="ad-banner mt-16" id="ad-game">Advertisement</div>
+      <!-- Taunt panel (shown only for winner) -->
+      <div class="taunt-panel hidden" id="taunt-panel">
+        <h4 data-i18n="taunt_title">Send Taunt</h4>
+        <div class="taunt-grid" id="taunt-grid"></div>
+        <div class="taunt-custom">
+          <input type="text" id="taunt-custom-input" data-i18n="taunt_custom_placeholder" placeholder="Custom taunt message..." maxlength="50">
+          <button class="btn btn-primary btn-small" id="taunt-send-btn" data-i18n="send_taunt">Send</button>
+        </div>
+      </div>
+
+      <div class="ad-container mt-16" id="ad-game"></div>
     </div>
   </div>
 
   <footer>
     <div class="footer-links">
-      <a href="rules.html">Rules</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="terms.html">Terms</a>
+      <a href="rules.html" data-i18n="rules">Rules</a>
+      <a href="privacy.html" data-i18n="privacy">Privacy</a>
+      <a href="terms.html" data-i18n="terms">Terms</a>
     </div>
-    <p>&copy; 2026 Omok Online</p>
+    <p data-i18n="copyright">&copy; 2026 MOKU.IO</p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/config.js"></script>
+  <script src="js/config.js?v=3"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/lang/en.js"></script>
+  <script src="js/lang/ko.js"></script>
+  <script src="js/shared.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/renju.js"></script>
+  <script src="js/taunt.js"></script>
   <script src="js/game.js"></script>
+  <script>
+    function toggleSound() {
+      const on = Sound.toggle();
+      document.getElementById('sound-toggle').textContent = on ? '🔊' : '🔇';
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('sound-toggle').textContent = Sound.isEnabled() ? '🔊' : '🔇';
+    });
+  </script>
 </body>
 </html>
