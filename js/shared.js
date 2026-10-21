@@ -1,5 +1,5 @@
 // Board rendering and helpers shared by the game pages
-const BOARD_SIZE = 15;
+const BOARD_SIZE = Rules.SIZE;
 const STAR_POINTS = [[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]];
 
 function renderBoard(boardEl, onCellClick, onMouseEnter, onMouseLeave) {
@@ -59,37 +59,6 @@ function removeStoneVisual(x, y) {
   if (!cell) return;
   const stone = cell.querySelector('.stone');
   if (stone) stone.remove();
-}
-
-// Returns array of winning coordinates or false
-function checkWinWithCoords(x, y, player, board) {
-  const directions = [[1,0],[0,1],[1,1],[1,-1]];
-
-  for (const [dx, dy] of directions) {
-    const coords = [{x, y}];
-
-    // Forward
-    for (let i = 1; i < 5; i++) {
-      const nx = x + dx * i;
-      const ny = y + dy * i;
-      if (nx < 0 || nx >= BOARD_SIZE || ny < 0 || ny >= BOARD_SIZE) break;
-      if (board[ny][nx] !== player) break;
-      coords.push({x: nx, y: ny});
-    }
-
-    // Backward
-    for (let i = 1; i < 5; i++) {
-      const nx = x - dx * i;
-      const ny = y - dy * i;
-      if (nx < 0 || nx >= BOARD_SIZE || ny < 0 || ny >= BOARD_SIZE) break;
-      if (board[ny][nx] !== player) break;
-      coords.push({x: nx, y: ny});
-    }
-
-    if (coords.length >= 5) return coords;
-  }
-
-  return false;
 }
 
 // Draw neon laser win line via SVG overlay
@@ -181,7 +150,35 @@ function removeHoverPreview(cell) {
 }
 
 function createEmptyBoard() {
-  return Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(null));
+  return Rules.createBoard();
+}
+
+const FORBIDDEN_KEYS = {
+  'double-three': 'forbidden_33',
+  'double-four': 'forbidden_44',
+  overline: 'forbidden_overline',
+};
+
+function forbiddenMessage(reason) {
+  return I18n.t(FORBIDDEN_KEYS[reason] || 'forbidden_move');
+}
+
+// Renju: mark the points Black can't play. Call when it is Black's turn.
+function showForbiddenMarkers(board) {
+  clearForbiddenMarkers();
+  for (const { x, y, reason } of Rules.forbiddenPoints(board)) {
+    const cell = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+    if (!cell || cell.querySelector('.stone')) continue;
+    const marker = document.createElement('div');
+    marker.className = 'forbidden-marker';
+    marker.textContent = '✕';
+    marker.title = forbiddenMessage(reason);
+    cell.appendChild(marker);
+  }
+}
+
+function clearForbiddenMarkers() {
+  document.querySelectorAll('.forbidden-marker').forEach(el => el.remove());
 }
 
 // Generate a random 6-char room code (shared between lobby and game)

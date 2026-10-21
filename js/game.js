@@ -190,7 +190,7 @@ function onHoverEnter(cell, x, y) {
 
   // Renju forbidden check for hover
   if (roomData.rules_type === 'renju' && myRole === 'black') {
-    if (Renju.isForbiddenMove(x, y, board)) return;
+    if (Rules.forbiddenReason(board, x, y)) return;
   }
 
   const preview = document.createElement('div');
@@ -263,7 +263,7 @@ async function loadRoom(code) {
 
   // Renju markers
   if (room.rules_type === 'renju' && room.current_turn === 'black' && room.status === 'playing') {
-    Renju.markForbiddenMoves(board);
+    showForbiddenMarkers(board);
   }
 
   subscribeToGame(room.id, room.code);
@@ -292,7 +292,7 @@ function subscribeToGame(roomId, roomCode) {
       // Apply impact effects for incoming moves
       applyImpactEffects(move.x, move.y, move.player, board);
 
-      const winCoords = checkWinWithCoords(move.x, move.y, move.player, board);
+      const winCoords = Rules.winningLine(board, move.x, move.y, roomData.rules_type);
       if (winCoords) {
         gameOver = true;
         drawWinLine(winCoords);
@@ -301,9 +301,9 @@ function subscribeToGame(roomId, roomCode) {
 
       // Update renju markers
       if (roomData && roomData.rules_type === 'renju') {
-        Renju.clearForbiddenMarkers();
+        clearForbiddenMarkers();
         if (roomData.current_turn === 'black' && !gameOver) {
-          Renju.markForbiddenMoves(board);
+          showForbiddenMarkers(board);
         }
       }
     })
@@ -331,9 +331,9 @@ function subscribeToGame(roomId, roomCode) {
 
       // Update renju markers on turn change
       if (roomData.rules_type === 'renju' && roomData.status === 'playing' && !gameOver) {
-        Renju.clearForbiddenMarkers();
+        clearForbiddenMarkers();
         if (roomData.current_turn === 'black') {
-          Renju.markForbiddenMoves(board);
+          showForbiddenMarkers(board);
         }
       }
     })
@@ -365,8 +365,9 @@ async function handleCellClick(x, y) {
 
   // Renju check
   if (roomData.rules_type === 'renju' && myRole === 'black') {
-    if (Renju.isForbiddenMove(x, y, board)) {
-      showToast(I18n.t('forbidden_move'));
+    const reason = Rules.forbiddenReason(board, x, y);
+    if (reason) {
+      showToast(forbiddenMessage(reason));
       return;
     }
   }
@@ -381,7 +382,7 @@ async function handleCellClick(x, y) {
   // Apply impact effects based on consecutive chain length
   applyImpactEffects(x, y, myRole, board);
 
-  const winCoords = checkWinWithCoords(x, y, myRole, board);
+  const winCoords = Rules.winningLine(board, x, y, roomData.rules_type);
 
   const { error: moveError } = await db
     .from('moves')
@@ -436,9 +437,9 @@ async function handleCellClick(x, y) {
 
   // Update renju markers
   if (roomData.rules_type === 'renju' && !gameOver) {
-    Renju.clearForbiddenMarkers();
+    clearForbiddenMarkers();
     if (nextTurn === 'black') {
-      Renju.markForbiddenMoves(board);
+      showForbiddenMarkers(board);
     }
   }
 }

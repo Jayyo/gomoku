@@ -29,7 +29,7 @@
 
     // Show forbidden moves for renju
     if (rulesType === 'renju' && currentTurn === 'black') {
-      Renju.markForbiddenMoves(board);
+      showForbiddenMarkers(board);
     }
   }
 
@@ -46,8 +46,9 @@
 
     // Renju check
     if (rulesType === 'renju' && currentTurn === 'black') {
-      if (Renju.isForbiddenMove(x, y, board)) {
-        showToast(I18n.t('forbidden_move'));
+      const reason = Rules.forbiddenReason(board, x, y);
+      if (reason) {
+        showToast(forbiddenMessage(reason));
         return;
       }
     }
@@ -59,13 +60,13 @@
     placeStoneVisual(x, y, currentTurn, true);
     Sound.playStone();
 
-    const winCoords = checkWinWithCoords(x, y, currentTurn, board);
+    const winCoords = Rules.winningLine(board, x, y, rulesType);
     if (winCoords) {
       gameOver = true;
       drawWinLine(winCoords);
       showLocalWinModal(currentTurn);
       Sound.playWin();
-      if (rulesType === 'renju') Renju.clearForbiddenMarkers();
+      if (rulesType === 'renju') clearForbiddenMarkers();
       return;
     }
 
@@ -80,9 +81,9 @@
 
     // Update forbidden moves for renju
     if (rulesType === 'renju') {
-      Renju.clearForbiddenMarkers();
+      clearForbiddenMarkers();
       if (currentTurn === 'black') {
-        Renju.markForbiddenMoves(board);
+        showForbiddenMarkers(board);
       }
     }
   }
@@ -162,7 +163,7 @@
     updateUI();
 
     if (rulesType === 'renju') {
-      Renju.markForbiddenMoves(board);
+      showForbiddenMarkers(board);
     }
   }
 
