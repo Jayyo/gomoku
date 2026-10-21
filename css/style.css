@@ -538,6 +538,13 @@ select {
 
 .waiting-box .copy-btn { margin: 4px; }
 
+.waiting-box .modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .rematch-offer {
   position: fixed;
   bottom: 80px;
