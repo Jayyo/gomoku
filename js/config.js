@@ -70,21 +70,31 @@ const Online = (() => {
 
 // Which seat this browser holds in a room ('host' or 'guest').
 // sessionStorage keeps two tabs of the same browser apart; localStorage survives a closed tab.
+// If storage is blocked, the seat travels in the game URL instead.
 const Seat = {
   get(code) {
     try {
-      return sessionStorage.getItem(`omok_seat_${code}`) || localStorage.getItem(`omok_seat_${code}`);
+      const stored = sessionStorage.getItem(`omok_seat_${code}`) || localStorage.getItem(`omok_seat_${code}`);
+      if (stored) return stored;
     } catch (e) {
-      return null;
+      // fall through to the URL
     }
+    const params = new URLSearchParams(window.location.search);
+    const seat = params.get('seat');
+    return params.get('room') === code && (seat === 'host' || seat === 'guest') ? seat : null;
   },
   set(code, seat) {
     try {
       sessionStorage.setItem(`omok_seat_${code}`, seat);
       localStorage.setItem(`omok_seat_${code}`, seat);
+      return true;
     } catch (e) {
-      // storage disabled: the seat only lasts for this page
+      return false;
     }
+  },
+  // Remember the seat and return the game page URL for the room
+  url(code, seat) {
+    return `game.html?room=${code}${this.set(code, seat) ? '' : `&seat=${seat}`}`;
   },
 };
 

@@ -1,5 +1,7 @@
 -- Omok online play: database setup for a new Supabase project.
 -- Run it in the SQL editor. Running it again is safe.
+-- It does not migrate the tables of earlier versions (rooms had a current_turn column then):
+-- `create table if not exists` would keep their old constraints, so drop those tables first.
 --
 -- There are no accounts. Anyone with the publishable key can create, join and play rooms,
 -- so these rules only keep the data consistent: room codes and names have a fixed shape,
@@ -46,6 +48,29 @@ create table if not exists public.taunts (
   created_at timestamptz not null default now()
 );
 
+-- Replays are public input: an array of at most 225 moves, each { x, y, player } on the board
+create or replace function public.is_valid_replay(replay jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select jsonb_typeof(replay) = 'array'
+    and jsonb_array_length(replay) <= 225
+    and not exists (
+      select 1
+      from jsonb_array_elements(replay) as m
+      where case
+        when jsonb_typeof(m) <> 'object'
+          or jsonb_typeof(m -> 'x') is distinct from 'number'
+          or jsonb_typeof(m -> 'y') is distinct from 'number' then true
+        else (m ->> 'x') !~ '^([0-9]|1[0-4])$'
+          or (m ->> 'y') !~ '^([0-9]|1[0-4])$'
+          or coalesce(m ->> 'player', '') not in ('black', 'white')
+      end
+    );
+$$;
+
 create table if not exists public.hall_of_fame (
   id uuid primary key default gen_random_uuid(),
   room_id uuid unique references public.rooms (id) on delete set null,
@@ -55,7 +80,7 @@ create table if not exists public.hall_of_fame (
   move_count int check (move_count between 1 and 225),
   rules_type text not null default 'freestyle' check (rules_type in ('freestyle', 'renju')),
   bet_text text check (char_length(bet_text) <= 100),
-  replay_data jsonb check (jsonb_typeof(replay_data) = 'array' and jsonb_array_length(replay_data) <= 225),
+  replay_data jsonb check (public.is_valid_replay(replay_data)),
   message text check (char_length(message) <= 100),
   winner_token text not null check (winner_token ~ '^[0-9a-f]{32}$'),
   created_at timestamptz not null default now()
@@ -143,13 +168,16 @@ create policy "moves go in order while playing" on public.moves for insert
     ))
   );
 
+-- Taunts are for the winner after the game, and capped so a room can't be flooded
 drop policy if exists "taunts are public" on public.taunts;
 drop policy if exists "taunts in started rooms" on public.taunts;
+drop policy if exists "taunts after the game" on public.taunts;
 create policy "taunts are public" on public.taunts for select using (true);
-create policy "taunts in started rooms" on public.taunts for insert
-  with check (exists (
-    select 1 from public.rooms r where r.id = taunts.room_id and r.status in ('playing', 'finished')
-  ));
+create policy "taunts after the game" on public.taunts for insert
+  with check (
+    exists (select 1 from public.rooms r where r.id = taunts.room_id and r.status = 'finished')
+    and (select count(*) from public.taunts t where t.room_id = taunts.room_id) < 30
+  );
 
 drop policy if exists "hall of fame is public" on public.hall_of_fame;
 drop policy if exists "winners can add their game" on public.hall_of_fame;

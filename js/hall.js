@@ -94,8 +94,10 @@
   }
 
   function showReplay(entry) {
+    // Entries are public input, so only draw well-formed moves
+    const inRange = v => Number.isInteger(v) && v >= 0 && v < BOARD_SIZE;
     const moves = entry.replay_data.filter(m =>
-      Number.isInteger(m.x) && Number.isInteger(m.y) && (m.player === 'black' || m.player === 'white'));
+      m && typeof m === 'object' && inRange(m.x) && inRange(m.y) && (m.player === 'black' || m.player === 'white'));
 
     const overlay = el('div', 'modal-overlay');
     const modal = el('div', 'modal replay-modal');

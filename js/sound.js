@@ -1,7 +1,12 @@
 // Synthesized sound effects (Web Audio API), no audio files
 // Inspired by Tetsuya Mizuguchi (Rez, Lumines) - layered, resonant, memorable sounds
 const Sound = (() => {
-  let enabled = localStorage.getItem('omok_sound') !== 'off';
+  let enabled = true;
+  try {
+    enabled = localStorage.getItem('omok_sound') !== 'off';
+  } catch (e) {
+    // storage blocked: sound stays on
+  }
   let audioCtx = null;
 
   function getCtx() {
@@ -13,7 +18,11 @@ const Sound = (() => {
 
   function setEnabled(val) {
     enabled = val;
-    localStorage.setItem('omok_sound', val ? 'on' : 'off');
+    try {
+      localStorage.setItem('omok_sound', val ? 'on' : 'off');
+    } catch (e) {
+      // not remembered
+    }
   }
 
   function isEnabled() { return enabled; }

@@ -175,9 +175,8 @@ async function createRoom() {
     showToast(I18n.t('failed_create'));
     return;
   }
-  Seat.set(created.code, 'host');
   closeCreateModal();
-  window.location.href = `game.html?room=${created.code}`;
+  window.location.href = Seat.url(created.code, 'host');
 }
 
 async function joinRoom(code) {
@@ -282,8 +281,7 @@ async function takeSeat(room, betAgreed) {
     showToast(I18n.t('room_in_game'));
     return;
   }
-  Seat.set(room.code, 'guest');
-  window.location.href = `game.html?room=${room.code}`;
+  window.location.href = Seat.url(room.code, 'guest');
 }
 
 async function loadRooms() {

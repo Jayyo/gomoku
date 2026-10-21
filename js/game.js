@@ -20,7 +20,9 @@ const OnlineGame = (() => {
   let moves = [];
   let result = null; // { winner, reason } once the game is over
   let pending = false;
-  let syncing = null;
+  let syncing = null; // promise while moves are being reloaded
+  let syncAgain = false;
+  let buffered = []; // realtime moves that arrive during a reload
   let channels = [];
   let rematchTaken = false;
 
@@ -30,6 +32,10 @@ const OnlineGame = (() => {
     document.addEventListener('langchange', updatePanel);
     window.addEventListener('beforeunload', () => {
       if (db) channels.forEach(ch => db.removeChannel(ch));
+    });
+    // Realtime can miss events while a phone sleeps; catch up when the tab comes back
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && room) refresh();
     });
     renderBoard(document.getElementById('board'), handleCellClick, onHoverEnter, removeHoverPreview);
 
@@ -91,47 +97,84 @@ const OnlineGame = (() => {
         payload => onRoomUpdate(payload.new))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` },
         () => { if (seat !== 'host') showNotice('room_closed', null); })
-      .subscribe());
+      // Anything that happened before the channel was ready (or while it was reconnecting) is fetched here
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') refresh();
+      }));
   }
 
-  // Reload all moves from the server (start-up, missed realtime events, failed inserts).
-  // `live` is false on page load, so a finished game doesn't replay its sounds.
+  async function refresh() {
+    const { data, error } = await db.from('rooms').select('*').eq('id', room.id).maybeSingle();
+    if (error) return;
+    if (!data) {
+      if (seat !== 'host') showNotice('room_closed', null);
+      return;
+    }
+    if (JSON.stringify(data) !== JSON.stringify(room)) onRoomUpdate(data);
+    await sync(false);
+  }
+
+  // Reload all moves from the server (start-up, reconnects, gaps, failed inserts).
+  // Moves that arrive meanwhile are buffered and applied afterwards, and a reload requested
+  // during another one runs again once it finishes. `live` is false when catching up, so
+  // an old result doesn't replay its sounds.
   function sync(live = true) {
-    if (!syncing) {
-      syncing = (async () => {
-        const { data, error } = await db
+    if (syncing) {
+      syncAgain = true;
+      return syncing;
+    }
+    syncing = (async () => {
+      let data = null;
+      do {
+        syncAgain = false;
+        const res = await db
           .from('moves')
           .select('x, y, player, move_number')
           .eq('room_id', room.id)
           .order('move_number', { ascending: true });
-        if (error) {
+        if (res.error) {
           showToast(I18n.t('sync_failed'));
           return;
         }
-        board = createEmptyBoard();
-        moves = [];
-        renderBoard(document.getElementById('board'), handleCellClick, onHoverEnter, removeHoverPreview);
-        clearWinLine();
-        for (const m of data) {
-          if (m.move_number !== moves.length + 1) break;
-          board[m.y][m.x] = m.player;
-          moves.push(m);
-          placeStoneVisual(m.x, m.y, m.player, m.move_number === data.length);
-        }
-        const last = moves[moves.length - 1];
-        const line = last && Rules.winningLine(board, last.x, last.y, room.rules_type);
-        if (line && result) drawWinLine(line);
-        else if (line) finish(last.player, line, 'five', live);
-        else if (moves.length === BOARD_SIZE * BOARD_SIZE && !result) finish(null, null, 'draw', live);
-        else if (room.status === 'finished' && !result) finish(room.winner, null, room.winner ? 'forfeit' : 'draw', live);
-        updatePanel();
-      })().finally(() => { syncing = null; });
-    }
+        data = res.data;
+      } while (syncAgain);
+      rebuild(data, live);
+    })().finally(() => {
+      syncing = null;
+      const late = buffered.splice(0).sort((a, b) => a.move_number - b.move_number);
+      late.forEach(m => applyMove(m, live));
+      updatePanel();
+      offerRematchIfAny();
+    });
     return syncing;
+  }
+
+  function rebuild(data, live) {
+    board = createEmptyBoard();
+    moves = [];
+    renderBoard(document.getElementById('board'), handleCellClick, onHoverEnter, removeHoverPreview);
+    clearWinLine();
+    for (const m of data) {
+      if (m.move_number !== moves.length + 1) break;
+      board[m.y][m.x] = m.player;
+      moves.push(m);
+    }
+    moves.forEach((m, i) => placeStoneVisual(m.x, m.y, m.player, i === moves.length - 1));
+
+    const last = moves[moves.length - 1];
+    const line = last && Rules.winningLine(board, last.x, last.y, room.rules_type);
+    if (line && result) drawWinLine(line);
+    else if (line) finish(last.player, line, 'five', live);
+    else if (moves.length === BOARD_SIZE * BOARD_SIZE && !result) finish(null, null, 'draw', live);
+    else if (room.status === 'finished' && !result) finish(room.winner, null, room.winner ? 'forfeit' : 'draw', live);
   }
 
   // ---- moves ----
   function applyMove(m, animate) {
+    if (syncing) {
+      buffered.push(m);
+      return;
+    }
     if (m.move_number <= moves.length) return;
     if (m.move_number !== moves.length + 1 || board[m.y][m.x]) {
       sync();
@@ -156,7 +199,7 @@ const OnlineGame = (() => {
   }
 
   async function handleCellClick(x, y) {
-    if (pending || result || !room || room.status !== 'playing' || !myRole) return;
+    if (pending || syncing || result || !room || room.status !== 'playing' || !myRole) return;
     if (turn() !== myRole) {
       showToast(I18n.t('not_your_turn'));
       return;
@@ -206,13 +249,16 @@ const OnlineGame = (() => {
       Sound.playStone();
     }
     if (room.status === 'finished' && !result) {
-      // Finished without a five on our board: the other player left, or we missed a move
-      sync().then(() => {
-        if (!result) finish(room.winner, null, room.winner ? 'forfeit' : 'draw', true);
-      });
+      // Finished without a five on our board: the other player left, or we missed a move.
+      // sync() finishes the game from the room row if the moves don't decide it.
+      sync(true);
     }
-    if (room.rematch_code && !before.rematch_code && result && !rematchTaken) showRematchOffer(room.rematch_code);
+    offerRematchIfAny();
     updatePanel();
+  }
+
+  function offerRematchIfAny() {
+    if (result && myRole && room.rematch_code && !rematchTaken) showRematchOffer(room.rematch_code);
   }
 
   async function recordResult(winner) {
@@ -399,7 +445,7 @@ const OnlineGame = (() => {
 
     const actions = el('div', 'modal-actions');
     if (iLost) {
-      // Losers get a few seconds to take in the result before they can leave
+      // The loser's buttons unlock after a short countdown
       const accept = button(I18n.t('accept_defeat'), 'btn btn-secondary', () => { window.location.href = 'index.html'; });
       const rage = button(I18n.t('rage_quit'), 'btn btn-danger', () => { window.location.href = 'index.html'; });
       accept.disabled = true;
@@ -433,7 +479,10 @@ const OnlineGame = (() => {
   // ---- taunts ----
   function setupTaunts() {
     try {
-      const channel = Taunt.subscribeTaunts(room.id, myName() || '', t => Taunt.play(t.taunt_type, t.sender, t.message));
+      // Taunts only exist after the game; anything else is ignored
+      const channel = Taunt.subscribeTaunts(room.id, myName() || '', (t) => {
+        if (result) Taunt.play(t.taunt_type, t.sender, t.message);
+      });
       if (channel) channels.push(channel);
     } catch (e) {
       console.warn('Taunt subscription failed:', e);
@@ -546,8 +595,7 @@ const OnlineGame = (() => {
       if (latest && latest.rematch_code) acceptRematch(latest.rematch_code);
       return;
     }
-    Seat.set(created.code, 'host');
-    window.location.href = `game.html?room=${created.code}`;
+    window.location.href = Seat.url(created.code, 'host');
   }
 
   function showRematchOffer(code) {
@@ -571,8 +619,7 @@ const OnlineGame = (() => {
       showToast(I18n.t('rematch_failed'));
       return;
     }
-    Seat.set(code, 'guest');
-    window.location.href = `game.html?room=${code}`;
+    window.location.href = Seat.url(code, 'guest');
   }
 
   async function leaveRoom() {

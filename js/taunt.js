@@ -1,6 +1,7 @@
 // Taunts the winner can send: full-screen "glitch" effects played one after another
 const Taunt = (() => {
   const DURATION = 2000; // 2 seconds per effect (fast for chaining)
+  const MAX_QUEUE = 3;
 
   // Queue state
   const queue = [];
@@ -183,6 +184,8 @@ const Taunt = (() => {
     const container = document.createElement('div');
     container.id = 'taunt-container';
     container.style.cssText = 'position:fixed;inset:0;z-index:500;pointer-events:all;';
+    // A click or tap skips the effect
+    container.addEventListener('click', rushCurrent);
     document.body.appendChild(container);
     currentContainer = container;
 
@@ -241,6 +244,8 @@ const Taunt = (() => {
   // Public play method - enqueues the taunt and starts processing if idle
   function play(effectKey, winnerName, customMsg) {
     if (!effects[effectKey]) return;
+    // Don't let a flood of taunts take over the screen
+    if (queue.length >= MAX_QUEUE) return;
 
     queue.push({ effectKey, winnerName, customMsg });
 

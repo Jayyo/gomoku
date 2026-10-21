@@ -1,6 +1,11 @@
 // Tiny i18n helper: t(key) lookups plus data-i18n / data-lang DOM updates
 const I18n = (() => {
-  let currentLang = localStorage.getItem('omok_lang') || 'en';
+  let currentLang = (navigator.language || '').toLowerCase().startsWith('ko') ? 'ko' : 'en';
+  try {
+    currentLang = localStorage.getItem('omok_lang') || currentLang;
+  } catch (e) {
+    // storage blocked: use the browser language
+  }
   const translations = {};
 
   function register(lang, data) {
@@ -13,7 +18,11 @@ const I18n = (() => {
 
   function setLang(lang) {
     currentLang = lang;
-    localStorage.setItem('omok_lang', lang);
+    try {
+      localStorage.setItem('omok_lang', lang);
+    } catch (e) {
+      // not remembered, still switches
+    }
     // Update all data-i18n elements
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
