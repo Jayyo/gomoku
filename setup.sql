@@ -139,6 +139,26 @@ drop trigger if exists rooms_check_update on public.rooms;
 create trigger rooms_check_update before update on public.rooms
   for each row execute function public.check_room_update();
 
+-- At most 30 taunts per room, so a room can't be flooded. The lock makes
+-- concurrent inserts into the same room take turns before counting.
+create or replace function public.limit_taunts()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  perform pg_advisory_xact_lock(hashtext(new.room_id::text));
+  if (select count(*) from public.taunts where room_id = new.room_id) >= 30 then
+    raise exception 'too many taunts in this room';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists taunts_limit on public.taunts;
+create trigger taunts_limit before insert on public.taunts
+  for each row execute function public.limit_taunts();
+
 -- Row level security
 alter table public.rooms enable row level security;
 alter table public.moves enable row level security;
@@ -168,16 +188,15 @@ create policy "moves go in order while playing" on public.moves for insert
     ))
   );
 
--- Taunts are for the winner after the game, and capped so a room can't be flooded
+-- Taunts are for the winner after the game
 drop policy if exists "taunts are public" on public.taunts;
 drop policy if exists "taunts in started rooms" on public.taunts;
 drop policy if exists "taunts after the game" on public.taunts;
 create policy "taunts are public" on public.taunts for select using (true);
 create policy "taunts after the game" on public.taunts for insert
-  with check (
-    exists (select 1 from public.rooms r where r.id = taunts.room_id and r.status = 'finished')
-    and (select count(*) from public.taunts t where t.room_id = taunts.room_id) < 30
-  );
+  with check (exists (
+    select 1 from public.rooms r where r.id = taunts.room_id and r.status = 'finished'
+  ));
 
 drop policy if exists "hall of fame is public" on public.hall_of_fame;
 drop policy if exists "winners can add their game" on public.hall_of_fame;

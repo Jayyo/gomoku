@@ -110,8 +110,18 @@ const OnlineGame = (() => {
       if (seat !== 'host') showNotice('room_closed', null);
       return;
     }
-    if (JSON.stringify(data) !== JSON.stringify(room)) onRoomUpdate(data);
+    onRoomUpdate(data);
     await sync(false);
+  }
+
+  // Rooms only move forward (waiting -> playing -> finished, guest and rematch code set once),
+  // so an update that isn't ahead of what we have is a stale response and is dropped
+  const STATUS_ORDER = { waiting: 0, playing: 1, finished: 2 };
+  function isAhead(next, current) {
+    const a = STATUS_ORDER[next.status];
+    const b = STATUS_ORDER[current.status];
+    if (a !== b) return a > b;
+    return (!current.guest_name && !!next.guest_name) || (!current.rematch_code && !!next.rematch_code);
   }
 
   // Reload all moves from the server (start-up, reconnects, gaps, failed inserts).
@@ -242,6 +252,7 @@ const OnlineGame = (() => {
 
   // ---- room changes ----
   function onRoomUpdate(next) {
+    if (!isAhead(next, room)) return;
     const before = room;
     room = next;
     if (before.status === 'waiting' && room.status === 'playing') {
