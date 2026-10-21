@@ -6,10 +6,10 @@ Gomoku (오목) in the browser. Play the computer, pass the device back and fort
 
 ## What it does
 
-- **Computer opponent** with three levels. It runs in the browser, in a Web Worker, so it works offline and the page stays responsive while it thinks.
+- **Computer opponent** with three levels. It runs in the browser, so it works offline, and it thinks in a Web Worker so the page stays responsive (on `file://`, where workers are blocked, it falls back to the main thread).
 - **Freestyle and Renju rules.** Under Renju, Black's forbidden points (double three, double four, overline) are marked on the board and can't be played. The check follows the RIF definitions, including split shapes like `●·●●` and threes that only look open.
 - **Two players on one device**, with undo.
-- **Online rooms** on Supabase: room codes and invite links, an optional bet, taunts for the winner, rematches with colors swapped, and a Hall of Fame with move-by-move replays.
+- **Online rooms** on Supabase: room codes and invite links, an optional bet, taunts the winner can send after the game, rematches with colors swapped, and a Hall of Fame with move-by-move replays.
 - English and Korean UI, keyboard play (arrow keys and Enter), sound effects synthesized with the Web Audio API.
 
 <p>
@@ -40,7 +40,7 @@ node --test
 
 ## Online play
 
-1. Create a Supabase project and run [`setup.sql`](setup.sql) in its SQL editor. It is safe to run again.
+1. Create a Supabase project and run [`setup.sql`](setup.sql) in its SQL editor. It is safe to run again, but it is written for a new project: tables left over from earlier versions of this repo have a different shape and should be dropped first.
 2. Put the project URL and its publishable (anon) key in [`js/config.js`](js/config.js).
 
 The publishable key is meant to be public. There are no accounts, so what it can do is limited by the database instead: room codes and names have a fixed format, moves must alternate colors in order with one stone per point, a trigger only allows rooms to go waiting → playing → finished, and a Hall of Fame entry can only be deleted with the token its winner received. That keeps the data consistent, but a modified client could still play for the other side or ignore Renju rules, since wins and forbidden moves are checked in the browser. It's fine for playing with friends, not for anything with stakes.
@@ -54,7 +54,7 @@ Every candidate point near the stones gets a score from the shapes it makes alon
 3. on Hard, also looks for forced wins that use threes (VCT);
 4. if the opponent threatens an open four or another double threat, only considers moves that stop it.
 
-Hard also skips moves that leave the opponent a VCF and looks one reply ahead. Easy skips the searches, sometimes ignores open threes and picks among its top few moves. In self-play Hard beats Normal most of the time, and Normal wins every game against Easy. Under Renju the engine never plays a forbidden point as Black, and as White it doesn't waste moves blocking points Black isn't allowed to use.
+Hard also skips moves that leave the opponent a VCF and looks one reply ahead. Easy skips the searches, sometimes ignores open threes and picks among its top few moves. In 120 self-play games against Normal (both colors, both rule sets), Hard won 73, lost 14 and drew 33. Normal won 39 of 40 games against Easy, with one draw. Under Renju the engine never plays a forbidden point as Black, and as White it doesn't waste moves blocking points Black isn't allowed to use.
 
 ## Layout
 
@@ -71,7 +71,7 @@ Hard also skips moves that leave the opponent a VCF and looks one reply ahead. E
 ## Limitations
 
 - Renju is played with a free opening. Tournament opening rules (Soosõrv-8, Taraguchi and others) aren't implemented, and a forbidden point is simply not playable instead of losing the game.
-- The computer doesn't do a deep search. It is hard to beat for a casual player, not for a strong one.
+- The computer only searches forced sequences of fours and threes, plus one reply ahead. It has no deeper game-tree search, so an experienced player will find its weak spots.
 - Online rooms have no accounts, see above.
 
 ## 한국어
