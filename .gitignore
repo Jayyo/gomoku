@@ -1,4 +1,11 @@
 .vercel/
-.playwright-cli/
-*.png
 node_modules/
+.env*
+*.log
+.DS_Store
+
+# local tooling output
+.playwright-cli/
+.playwright-mcp/
+.claude/
+/*.png

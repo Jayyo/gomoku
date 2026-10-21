@@ -1,6 +1,6 @@
-// i18n translation engine for MOKU.IO
+// Tiny i18n helper: t(key) lookups plus data-i18n / data-lang DOM updates
 const I18n = (() => {
-  let currentLang = localStorage.getItem('moku_lang') || 'en';
+  let currentLang = localStorage.getItem('omok_lang') || 'en';
   const translations = {};
 
   function register(lang, data) {
@@ -13,7 +13,7 @@ const I18n = (() => {
 
   function setLang(lang) {
     currentLang = lang;
-    localStorage.setItem('moku_lang', lang);
+    localStorage.setItem('omok_lang', lang);
     // Update all data-i18n elements
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');

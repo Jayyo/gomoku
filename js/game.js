@@ -1,4 +1,4 @@
-// Game logic for MOKU.IO - Online mode
+// Game page: online rooms (local play lives in local-game.js)
 let board = createEmptyBoard();
 let roomData = null;
 let myRole = null;
@@ -122,8 +122,6 @@ function applyImpactEffects(x, y, player, boardState) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  I18n.init();
-
   const params = new URLSearchParams(window.location.search);
 
   // Check if local mode - redirect to local game page
@@ -180,7 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  myRole = localStorage.getItem('gomoku_player_role');
+  myRole = localStorage.getItem('omok_player_role');
   const boardEl = document.getElementById('board');
   renderBoard(boardEl, handleCellClick, onHoverEnter, onHoverLeave);
   await loadRoom(roomCode);
@@ -343,7 +341,7 @@ function subscribeToGame(roomId, roomCode) {
 }
 
 function setupTaunts(roomId) {
-  const nickname = localStorage.getItem('gomoku_nickname') || '';
+  const nickname = localStorage.getItem('omok_nickname') || '';
 
   // Subscribe to incoming taunts
   try {
@@ -448,7 +446,7 @@ async function handleCellClick(x, y) {
 function updateGameInfo() {
   if (!roomData) return;
 
-  const nickname = localStorage.getItem('gomoku_nickname') || 'You';
+  const nickname = localStorage.getItem('omok_nickname') || 'You';
   const hostName = roomData.host_name || 'Host';
   const guestName = roomData.guest_name || I18n.t('waiting');
 
@@ -502,7 +500,7 @@ function hideWaitingOverlay() {
 }
 
 function showWinModal(winner) {
-  const nickname = localStorage.getItem('gomoku_nickname') || 'You';
+  const nickname = localStorage.getItem('omok_nickname') || 'You';
   let title, result, modalClass, titleClass, isWinner;
 
   if (!winner) {
@@ -689,7 +687,7 @@ function showConfetti() {
 // Taunt sending
 window.sendTaunt = async function(effectKey, customMsg) {
   if (!roomData) return;
-  const nickname = localStorage.getItem('gomoku_nickname') || '';
+  const nickname = localStorage.getItem('omok_nickname') || '';
   await Taunt.sendTaunt(roomData.id, nickname, effectKey, customMsg);
   showToast('Taunt sent!');
 };
@@ -701,7 +699,7 @@ window.sendTauntFromModal = function(effectKey) {
 // Enshrine victory
 window.enshrineVictory = async function() {
   if (!roomData) return;
-  const nickname = localStorage.getItem('gomoku_nickname') || '';
+  const nickname = localStorage.getItem('omok_nickname') || '';
   const msgInput = document.getElementById('enshrine-msg');
   const message = msgInput ? msgInput.value.trim() : '';
 
@@ -740,9 +738,9 @@ window.enshrineVictory = async function() {
   }
 
   // Store token locally for delete capability
-  const storedTokens = JSON.parse(localStorage.getItem('moku_hall_tokens') || '{}');
+  const storedTokens = JSON.parse(localStorage.getItem('omok_hall_tokens') || '{}');
   storedTokens[entry.id] = token;
-  localStorage.setItem('moku_hall_tokens', JSON.stringify(storedTokens));
+  localStorage.setItem('omok_hall_tokens', JSON.stringify(storedTokens));
 
   showToast(I18n.t('enshrine') + '!');
 
@@ -757,7 +755,7 @@ window.enshrineVictory = async function() {
 // Rematch
 window.requestRematch = async function() {
   if (!roomData) return;
-  const nickname = localStorage.getItem('gomoku_nickname') || '';
+  const nickname = localStorage.getItem('omok_nickname') || '';
 
   // Create new room with swapped roles
   const newCode = generateCode();
@@ -788,7 +786,7 @@ window.requestRematch = async function() {
     .eq('id', roomData.id);
 
   // Navigate
-  localStorage.setItem('gomoku_player_role', newHostRole);
+  localStorage.setItem('omok_player_role', newHostRole);
   window.location.href = `game.html?room=${newCode}`;
 };
 
@@ -809,7 +807,7 @@ function showRematchNotification(rematchCode) {
 }
 
 window.acceptRematch = function(code) {
-  localStorage.setItem('gomoku_player_role', 'white');
+  localStorage.setItem('omok_player_role', 'white');
   window.location.href = `game.html?room=${code}`;
 };
 

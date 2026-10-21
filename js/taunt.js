@@ -1,4 +1,4 @@
-// Taunt system for MOKU.IO - "Neural Glitch" effects with sequential queue
+// Taunts the winner can send: full-screen "glitch" effects played one after another
 const Taunt = (() => {
   const DURATION = 2000; // 2 seconds per effect (fast for chaining)
 
@@ -141,14 +141,14 @@ const Taunt = (() => {
           </div>`;
       }
     },
-    moku_god: {
-      name: 'MOKU_GOD',
+    omok_god: {
+      name: 'OMOK_GOD',
       run(container, winnerName, customMsg) {
         const msg = customMsg || 'GG EZ';
         container.innerHTML = `
           <div class="taunt-fullscreen" style="background:rgba(15,23,42,0.95);display:flex;align-items:center;justify-content:center;">
             <div class="taunt-popup" style="background:#1E293B;border:2px solid #22D3EE;border-radius:12px;padding:30px 40px;max-width:400px;text-align:center;box-shadow:0 0 40px rgba(34,211,238,0.3);">
-              <div style="color:#EF4444;font-size:0.9em;margin-bottom:8px;">⚠ MOKU.IO SYSTEM UPDATE</div>
+              <div style="color:#EF4444;font-size:0.9em;margin-bottom:8px;">⚠ OMOK SYSTEM UPDATE</div>
               <div style="color:#fff;font-size:1.8em;font-weight:bold;margin-bottom:12px;">${escapeHtml(winnerName || 'WINNER')}</div>
               <div style="color:#22D3EE;font-size:1.2em;margin-bottom:20px;">${escapeHtml(msg)}</div>
               <div style="color:#334155;font-size:0.8em;">This popup will close automatically...</div>

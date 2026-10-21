@@ -1,4 +1,4 @@
--- MOKU.IO Database Setup
+-- Omok database setup
 -- Run this in Supabase SQL Editor
 
 -- Rooms table

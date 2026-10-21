@@ -1,10 +1,8 @@
-// Lobby logic for MOKU.IO
-let nickname = localStorage.getItem('gomoku_nickname') || '';
+// Lobby page
+let nickname = localStorage.getItem('omok_nickname') || '';
 let roomSubscription = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-  I18n.init();
-
   const nicknameInput = document.getElementById('nickname');
   const createBtn = document.getElementById('create-btn');
   const joinCodeInput = document.getElementById('join-code');
@@ -15,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   nicknameInput.addEventListener('input', (e) => {
     nickname = e.target.value.trim();
-    localStorage.setItem('gomoku_nickname', nickname);
+    localStorage.setItem('omok_nickname', nickname);
   });
 
   // Create button opens modal
@@ -88,8 +86,8 @@ async function createRoom() {
     ({ data, error } = await db.from('rooms').insert(insertData).select().single());
     if (!error) {
       // Store rules/bet locally for game page
-      localStorage.setItem('gomoku_rules_type', rulesType);
-      if (betText) localStorage.setItem('gomoku_bet_text', betText);
+      localStorage.setItem('omok_rules_type', rulesType);
+      if (betText) localStorage.setItem('omok_bet_text', betText);
     }
   }
 
@@ -101,7 +99,7 @@ async function createRoom() {
     return;
   }
 
-  localStorage.setItem('gomoku_player_role', 'black');
+  localStorage.setItem('omok_player_role', 'black');
   document.getElementById('create-modal').classList.add('hidden');
   window.location.href = `game.html?room=${code}`;
 }
@@ -196,7 +194,7 @@ async function doJoinRoom(room, betAgreed = false) {
     return;
   }
 
-  localStorage.setItem('gomoku_player_role', 'white');
+  localStorage.setItem('omok_player_role', 'white');
   window.location.href = `game.html?room=${room.code}`;
 }
 

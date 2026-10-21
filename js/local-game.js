@@ -1,4 +1,4 @@
-// Local play mode for MOKU.IO - no Supabase needed
+// Pass-and-play on one device, no server involved
 (function() {
   let board = createEmptyBoard();
   let currentTurn = 'black';

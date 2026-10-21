@@ -1,9 +1,8 @@
-// Hall of Fame page logic for MOKU.IO
+// Hall of Fame page
 (function() {
   let entries = [];
 
   document.addEventListener('DOMContentLoaded', async () => {
-    I18n.init();
     if (!db) {
       const listEl = document.getElementById('hall-list');
       if (listEl) listEl.innerHTML = '<p class="empty-msg">Connecting to server...</p>';
@@ -39,7 +38,7 @@
     }
 
     // Get stored tokens for delete capability
-    const storedTokens = JSON.parse(localStorage.getItem('moku_hall_tokens') || '{}');
+    const storedTokens = JSON.parse(localStorage.getItem('omok_hall_tokens') || '{}');
 
     listEl.innerHTML = entries.map((entry, idx) => {
       const canDelete = storedTokens[entry.id];
@@ -146,7 +145,7 @@
 
   // Delete entry
   window.hallDelete = async function(id) {
-    const storedTokens = JSON.parse(localStorage.getItem('moku_hall_tokens') || '{}');
+    const storedTokens = JSON.parse(localStorage.getItem('omok_hall_tokens') || '{}');
     const token = storedTokens[id];
     if (!token) return;
 
@@ -174,7 +173,7 @@
 
     // Remove token
     delete storedTokens[id];
-    localStorage.setItem('moku_hall_tokens', JSON.stringify(storedTokens));
+    localStorage.setItem('omok_hall_tokens', JSON.stringify(storedTokens));
 
     // Remove from UI
     entries = entries.filter(e => e.id !== id);

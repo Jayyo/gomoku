@@ -1,7 +1,7 @@
-// Sound manager for MOKU.IO - Synesthesia-style synthesized audio via Web Audio API
+// Synthesized sound effects (Web Audio API), no audio files
 // Inspired by Tetsuya Mizuguchi (Rez, Lumines) - layered, resonant, memorable sounds
 const Sound = (() => {
-  let enabled = localStorage.getItem('moku_sound') !== 'off';
+  let enabled = localStorage.getItem('omok_sound') !== 'off';
   let audioCtx = null;
 
   function getCtx() {
@@ -13,7 +13,7 @@ const Sound = (() => {
 
   function setEnabled(val) {
     enabled = val;
-    localStorage.setItem('moku_sound', val ? 'on' : 'off');
+    localStorage.setItem('omok_sound', val ? 'on' : 'off');
   }
 
   function isEnabled() { return enabled; }
@@ -643,7 +643,7 @@ const Sound = (() => {
     },
 
     // Dramatic horn + fanfare - god-tier announcement
-    moku_god(ctx, t) {
+    omok_god(ctx, t) {
       const reverb = createReverb(ctx, 2.0, 2.0);
       const reverbGain = mkGain(ctx, 0.25);
       reverb.connect(reverbGain);

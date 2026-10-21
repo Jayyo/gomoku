@@ -3,43 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="MOKU.IO - Play Gomoku (오목) online with friends. Create a room, compete, and dominate!">
-  <title>MOKU.IO - Competitive Online Gomoku</title>
+  <title>Omok · Gomoku in the browser</title>
+  <meta name="description" content="Gomoku (오목) in the browser with freestyle and Renju rules. Pass-and-play on one device or invite a friend to an online room.">
+  <meta property="og:title" content="Omok · Gomoku in the browser">
+  <meta property="og:description" content="Gomoku (오목) in the browser with freestyle and Renju rules.">
+  <meta property="og:type" content="website">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="theme-color" content="#0F172A">
-  <meta property="og:title" content="MOKU.IO - Competitive Online Gomoku">
-  <meta property="og:description" content="Play Gomoku (오목) online with friends. Create a room, compete, and dominate!">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://moku.jaydevlab.com">
-  <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="MOKU.IO - Competitive Online Gomoku">
-  <meta name="twitter:description" content="Play Gomoku online with friends. Free, no download needed.">
   <link rel="stylesheet" href="css/style.css">
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1203595880043680" crossorigin="anonymous"></script>
 </head>
 <body>
   <nav>
-    <a href="index.html" class="logo">MOKU.IO</a>
+    <a href="index.html" class="logo">Omok</a>
     <div class="nav-links">
       <a href="index.html" class="active" data-i18n="play">Play</a>
       <a href="rules.html" data-i18n="rules">Rules</a>
-      <a href="strategy.html" data-i18n="strategy">Strategy</a>
-      <a href="faq.html" data-i18n="faq">FAQ</a>
       <a href="hall.html" data-i18n="hall_of_fame">Hall of Fame</a>
-      <a href="about.html" data-i18n="about">About</a>
-      <button class="lang-toggle" id="lang-toggle" onclick="I18n.setLang(I18n.getLang()==='en'?'ko':'en')">한국어</button>
-      <button class="sound-toggle" id="sound-toggle" onclick="toggleSound()" title="Toggle Sound">🔊</button>
+      <button type="button" class="lang-toggle" id="lang-toggle">한국어</button>
+      <button type="button" class="sound-toggle" id="sound-toggle" title="Sound">🔊</button>
     </div>
   </nav>
 
   <div class="hero">
-    <h1 data-i18n="hero_title">MOKU.IO</h1>
-    <p data-i18n="hero_subtitle">Play Gomoku with friends. Create, compete, dominate.</p>
+    <h1 data-i18n="hero_title">Omok</h1>
+    <p data-i18n="hero_subtitle">Gomoku in the browser. Five in a row wins.</p>
   </div>
 
   <div class="container">
-    <div class="ad-container" id="ad-top"></div>
-
     <!-- Nickname -->
     <div class="nickname-section">
       <input type="text" id="nickname" data-i18n="nickname_placeholder" placeholder="Enter your nickname" maxlength="20">
@@ -83,8 +73,6 @@
         <p class="empty-msg" data-i18n="loading_rooms">Loading rooms...</p>
       </div>
     </div>
-
-    <div class="ad-container" id="ad-bottom"></div>
   </div>
 
   <!-- Room Creation Modal (hidden by default) -->
@@ -112,32 +100,20 @@
   <footer>
     <div class="footer-links">
       <a href="rules.html" data-i18n="rules">Rules</a>
-      <a href="strategy.html" data-i18n="strategy">Strategy</a>
-      <a href="faq.html" data-i18n="faq">FAQ</a>
       <a href="hall.html" data-i18n="hall_of_fame">Hall of Fame</a>
-      <a href="about.html" data-i18n="about">About</a>
-      <a href="privacy.html" data-i18n="privacy">Privacy Policy</a>
-      <a href="terms.html" data-i18n="terms">Terms of Service</a>
+      <a href="https://github.com/Jayyo/gomoku" rel="noopener">GitHub</a>
     </div>
-    <p data-i18n="copyright">&copy; 2026 MOKU.IO. All rights reserved.</p>
+    <p data-i18n="footer_note">A side project by Jayyo.</p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/config.js?v=3"></script>
+  <script src="js/config.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/lang/en.js"></script>
   <script src="js/lang/ko.js"></script>
   <script src="js/shared.js"></script>
   <script src="js/sound.js"></script>
+  <script src="js/page.js"></script>
   <script src="js/lobby.js"></script>
-  <script>
-    function toggleSound() {
-      const on = Sound.toggle();
-      document.getElementById('sound-toggle').textContent = on ? '🔊' : '🔇';
-    }
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('sound-toggle').textContent = Sound.isEnabled() ? '🔊' : '🔇';
-    });
-  </script>
 </body>
 </html>

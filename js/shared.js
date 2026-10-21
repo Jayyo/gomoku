@@ -1,4 +1,4 @@
-// Shared utilities for MOKU.IO
+// Board rendering and helpers shared by the game pages
 const BOARD_SIZE = 15;
 const STAR_POINTS = [[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]];
 

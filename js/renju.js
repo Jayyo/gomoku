@@ -1,4 +1,4 @@
-// Renju forbidden move detection for MOKU.IO
+// Renju forbidden move detection
 // Forbidden moves (for black only): double-three, double-four, overline (6+)
 const Renju = (() => {
 

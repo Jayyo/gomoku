@@ -3,281 +3,146 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rules of Gomoku - MOKU.IO</title>
-  <meta name="description" content="Learn the complete rules of Gomoku (Omok). Understand board setup, stone placement, winning conditions, Renju rules, and official tournament rules.">
+  <title>Rules · Omok</title>
+  <meta name="description" content="Rules of Gomoku (Omok): freestyle and Renju, with the forbidden moves for Black explained.">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="theme-color" content="#0F172A">
   <link rel="stylesheet" href="css/style.css">
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1203595880043680" crossorigin="anonymous"></script>
 </head>
 <body>
+  <nav>
+    <a href="index.html" class="logo">Omok</a>
+    <div class="nav-links">
+      <a href="index.html" data-i18n="play">Play</a>
+      <a href="rules.html" class="active" data-i18n="rules">Rules</a>
+      <a href="hall.html" data-i18n="hall_of_fame">Hall of Fame</a>
+      <button type="button" class="lang-toggle" id="lang-toggle">한국어</button>
+    </div>
+  </nav>
 
-<nav>
-  <a href="index.html" class="logo">MOKU.IO</a>
-  <div class="nav-links">
-    <a href="index.html" data-i18n="play">Play</a>
-    <a href="rules.html" class="active" data-i18n="rules">Rules</a>
-    <a href="strategy.html" data-i18n="strategy">Strategy</a>
-    <a href="faq.html" data-i18n="faq">FAQ</a>
-    <a href="hall.html" data-i18n="hall_of_fame">Hall of Fame</a>
-    <a href="about.html" data-i18n="about">About</a>
-    <button class="lang-toggle" id="lang-toggle" onclick="I18n.setLang(I18n.getLang()==='en'?'ko':'en')">한국어</button>
-    <button class="sound-toggle" id="sound-toggle" onclick="toggleSound()" title="Toggle Sound">🔊</button>
-  </div>
-</nav>
+  <main class="content-page">
+    <div data-lang="en">
+      <h1>How to play</h1>
+      <p>Omok (오목, also known as Gomoku) is played on the 15&nbsp;×&nbsp;15 lines of a Go board. Black moves first, then the players take turns placing one stone on any empty intersection. Stones are never moved or removed. The first player to get five stones in an unbroken line, across, down or diagonally, wins. If the board fills up first, the game is a draw.</p>
 
-<div class="content-page">
+      <div class="diagrams">
+        <figure>
+          <div class="mini-board" data-rows="....... .b..... ..b..w. ...b.w. ....bw. .....b. ......."></div>
+          <figcaption>Black has five on the diagonal and wins.</figcaption>
+        </figure>
+      </div>
 
-  <div class="ad-container"></div>
+      <h2>Freestyle</h2>
+      <p>No restrictions for either side: five or more in a row wins. This is how most people play casually. It favors Black a lot; with perfect play Black always wins.</p>
 
-  <!-- English Content -->
-  <div data-lang="en">
+      <h2>Renju</h2>
+      <p>Renju keeps the board and the goal but restricts Black to even out the first-move advantage.</p>
+      <ul>
+        <li>White has no restrictions and wins with five or more.</li>
+        <li>Black wins only with exactly five.</li>
+        <li>Black may not play on a forbidden point. While it is Black's turn these points are marked with ✕, and clicking them does nothing.
+          <ul>
+            <li><strong>Double three (3-3)</strong>: a stone that makes two open threes at once.</li>
+            <li><strong>Double four (4-4)</strong>: a stone that makes two fours at once. The two fours can even be on the same line.</li>
+            <li><strong>Overline</strong>: a stone that makes six or more in a row.</li>
+          </ul>
+        </li>
+        <li>Making exactly five always wins, even if the same stone also makes one of the shapes above.</li>
+      </ul>
 
-    <h1>Rules of Gomoku (Omok)</h1>
+      <div class="diagrams">
+        <figure>
+          <div class="mini-board" data-rows="....... ....... ...b... ...b... .bbx... ....... ......."></div>
+          <figcaption>3-3: ✕ would make two open threes.</figcaption>
+        </figure>
+        <figure>
+          <div class="mini-board" data-rows="....w.. ....b.. ....b.. ....b.. wbbbx.. ....... ......."></div>
+          <figcaption>4-4: ✕ would make two fours. Blocked fours count too.</figcaption>
+        </figure>
+        <figure>
+          <div class="mini-board" data-rows="....... ....... ....... bbbxbb. ....... ....... ......."></div>
+          <figcaption>Overline: ✕ would make six in a row.</figcaption>
+        </figure>
+      </div>
 
-    <p>Gomoku, known as <strong>Omok</strong> (오목) in Korean and <strong>Gobang</strong> in some Western traditions, is one of the oldest and most widely played board games in the world. Its origins trace back thousands of years to ancient China, and it has since become a beloved pastime across East Asia and beyond. Despite its simple rules, Gomoku offers remarkable strategic depth that has captivated casual players and competitive minds alike.</p>
+      <h3>Terms</h3>
+      <ul>
+        <li><strong>Four</strong>: one more stone would make exactly five, for example <code>●●●●·</code> or <code>●●·●●</code>.</li>
+        <li><strong>Straight four</strong>: a four with two such points (<code>·●●●●·</code>). It can't be stopped.</li>
+        <li><strong>Open three</strong>: a three that can become a straight four with one more stone, for example <code>·●●●·</code> or <code>·●●·●·</code>. If the stone needed for that would itself be forbidden, it doesn't count as a three.</li>
+      </ul>
 
-    <h2>The Board</h2>
-
-    <p>Gomoku is played on a <strong>15x15 grid</strong> of intersecting lines. Unlike chess or checkers, stones are placed on the <strong>intersections</strong> of the lines, not inside the squares. This gives the standard board a total of 225 possible positions where a stone can be placed. Some variations use a 19x19 Go board, but the 15x15 board is the official standard for competitive Gomoku and is what we use here on MOKU.IO.</p>
-
-    <div class="board-diagram">
-<pre>
-   A B C D E F G H I J K L M N O
-15 . . . . . . . . . . . . . . .
-14 . . . . . . . . . . . . . . .
-13 . . . . . . . . . . . . . . .
-12 . . . . . . . . . . . . . . .
-11 . . . . . . . X . . . . . . .
-10 . . . . . . X O . . . . . . .
- 9 . . . . . X O . . . . . . . .
- 8 . . . . X O . . . . . . . . .
- 7 . . . . O . . . . . . . . . .
- 6 . . . . . . . . . . . . . . .
- 5 . . . . . . . . . . . . . . .
- 4 . . . . . . . . . . . . . . .
- 3 . . . . . . . . . . . . . . .
- 2 . . . . . . . . . . . . . . .
- 1 . . . . . . . . . . . . . . .
-
-  X = Black stones    O = White stones
-  Black has 4 in a diagonal row - one more to win!
-</pre>
+      <p class="note">Not implemented: tournament opening rules (Soosõrv-8, Taraguchi and others) and the official penalty for a forbidden move, which is losing the game. Here the opening is free and forbidden points simply can't be played.</p>
     </div>
 
-    <h2>The Stones</h2>
+    <div data-lang="ko">
+      <h1>규칙</h1>
+      <p>오목은 바둑판의 가로세로 15줄 위에서 둡니다. 흑이 먼저 두고, 이후 번갈아 빈 교차점에 돌을 하나씩 놓습니다. 놓은 돌은 옮기거나 들어낼 수 없습니다. 가로, 세로, 대각선 중 한 방향으로 다섯 개를 먼저 연달아 놓는 쪽이 이깁니다. 판이 다 차면 무승부입니다.</p>
 
-    <p>Two players take turns placing stones on the board. One player uses <strong>black stones</strong> and the other uses <strong>white stones</strong>. Once a stone is placed on the board, it cannot be moved or removed for the rest of the game. This is a key difference from games like chess, where pieces move around the board throughout the game.</p>
+      <div class="diagrams">
+        <figure>
+          <div class="mini-board" data-rows="....... .b..... ..b..w. ...b.w. ....bw. .....b. ......."></div>
+          <figcaption>흑이 대각선으로 다섯 개를 이어 이겼습니다.</figcaption>
+        </figure>
+      </div>
 
-    <h2>Who Goes First</h2>
+      <h2>자유룰</h2>
+      <p>양쪽 모두 제한이 없고, 다섯 개 이상 이으면 이깁니다. 흔히 두는 방식입니다. 흑이 크게 유리해서, 서로 최선을 다하면 흑이 반드시 이깁니다.</p>
 
-    <p>The player with the <strong>black stones always goes first</strong>. Because going first provides a significant strategic advantage in Gomoku, tournament play often includes special opening rules to balance this. In casual games on MOKU.IO, the room creator chooses their color, and black always takes the first turn.</p>
+      <h2>렌주룰</h2>
+      <p>판과 목표는 같지만, 먼저 두는 쪽의 이점을 줄이기 위해 흑에게만 제한을 둡니다.</p>
+      <ul>
+        <li>백은 제한이 없고, 다섯 개 이상이면 이깁니다.</li>
+        <li>흑은 정확히 다섯 개일 때만 이깁니다.</li>
+        <li>흑은 금수 자리에 둘 수 없습니다. 흑 차례에는 금수 자리가 ✕로 표시되고, 눌러도 돌이 놓이지 않습니다.
+          <ul>
+            <li><strong>삼삼 (3-3)</strong>: 한 수로 열린 삼을 두 개 동시에 만드는 수</li>
+            <li><strong>사사 (4-4)</strong>: 한 수로 사를 두 개 동시에 만드는 수. 두 사가 같은 줄에 있어도 해당합니다.</li>
+            <li><strong>장목</strong>: 여섯 개 이상 이어지는 수</li>
+          </ul>
+        </li>
+        <li>정확히 다섯 개를 만드는 수는 위 모양이 함께 생기더라도 승리입니다.</li>
+      </ul>
 
-    <h2>How to Play</h2>
+      <div class="diagrams">
+        <figure>
+          <div class="mini-board" data-rows="....... ....... ...b... ...b... .bbx... ....... ......."></div>
+          <figcaption>삼삼: ✕에 두면 열린 삼이 두 개 생깁니다.</figcaption>
+        </figure>
+        <figure>
+          <div class="mini-board" data-rows="....w.. ....b.. ....b.. ....b.. wbbbx.. ....... ......."></div>
+          <figcaption>사사: ✕에 두면 사가 두 개 생깁니다. 막힌 사도 포함됩니다.</figcaption>
+        </figure>
+        <figure>
+          <div class="mini-board" data-rows="....... ....... ....... bbbxbb. ....... ....... ......."></div>
+          <figcaption>장목: ✕에 두면 여섯 개가 이어집니다.</figcaption>
+        </figure>
+      </div>
 
-    <p>Players alternate turns, each placing one stone per turn on any empty intersection of the board. Black places the first stone, followed by white, and so on. There is no passing in standard Gomoku; you must place a stone on your turn. The game continues until one player achieves the winning condition or the board is completely filled.</p>
+      <h3>용어</h3>
+      <ul>
+        <li><strong>사</strong>: 한 수만 더 두면 정확히 다섯이 되는 모양. 예) <code>●●●●·</code>, <code>●●·●●</code></li>
+        <li><strong>열린 사</strong>: 다섯을 만들 자리가 두 곳인 사 (<code>·●●●●·</code>). 막을 수 없습니다.</li>
+        <li><strong>열린 삼</strong>: 한 수 더 두면 열린 사가 되는 삼. 예) <code>·●●●·</code>, <code>·●●·●·</code>. 열린 사를 만드는 그 수가 금수라면 열린 삼으로 치지 않습니다.</li>
+      </ul>
 
-    <h2>Winning the Game</h2>
-
-    <p>The objective is simple: be the first player to form an <strong>unbroken line of exactly five stones</strong> of your color. This line can run in any of four directions:</p>
-
-    <ul>
-      <li><strong>Horizontal</strong> - five stones in a row along the same horizontal line</li>
-      <li><strong>Vertical</strong> - five stones in a column along the same vertical line</li>
-      <li><strong>Diagonal (ascending)</strong> - five stones running diagonally from lower-left to upper-right</li>
-      <li><strong>Diagonal (descending)</strong> - five stones running diagonally from upper-left to lower-right</li>
-    </ul>
-
-    <p>The five stones must be <strong>consecutive</strong> with no gaps and no opponent stones between them. As soon as a player completes a row of five, they win immediately, regardless of whose turn it is.</p>
-
-    <h2>Draw Conditions</h2>
-
-    <p>If all 225 intersections on the board are filled and neither player has achieved five in a row, the game ends in a <strong>draw</strong>. Draws are relatively rare in practice, as most games conclude well before the board is full.</p>
-
-    <h2>Overlines (Six or More in a Row)</h2>
-
-    <p>In the <strong>standard free-style rules</strong> used on MOKU.IO, forming six or more stones in a row (called an <strong>overline</strong>) still counts as a win. However, in some professional rulesets such as Renju, overlines are forbidden for the black player and do not count as winning. On MOKU.IO, we use free-style rules where any five or more consecutive stones wins the game.</p>
-
-    <h2>Renju Rules</h2>
-
-    <p><strong>Renju</strong> is the professional variant of Gomoku recognized by the <strong>Renju International Federation (RIF)</strong>. It was developed to address the proven first-player advantage in free-style Gomoku by imposing restrictions on the black player. Here are the key Renju rules:</p>
-
-    <h3>Forbidden Moves for Black</h3>
-
-    <p>In Renju, the black player (who moves first) is subject to three types of <strong>forbidden moves</strong>:</p>
-
-    <ul>
-      <li><strong>Double Three (3-3)</strong> - Black cannot place a stone that simultaneously creates two open threes (lines of three stones with both ends open). This prevents Black from creating an unstoppable dual threat too easily.</li>
-      <li><strong>Double Four (4-4)</strong> - Black cannot place a stone that simultaneously creates two fours (lines of four stones). Even if one or both fours are blocked on one end, the double four is still forbidden.</li>
-      <li><strong>Overline (6+)</strong> - Black cannot form a line of six or more consecutive stones. Only exactly five in a row counts as a win for Black.</li>
-    </ul>
-
-    <p>If Black plays a forbidden move, <strong>Black loses immediately</strong>. White has no forbidden moves and can freely form double threes, double fours, or overlines.</p>
-
-    <h3>Renju Opening Rules</h3>
-
-    <p>To further balance the game, Renju tournaments use structured opening sequences. The most common is the <strong>Soosyrv-8 rule</strong>, where the first player places the first three stones (one black, one white, one black), and the second player can choose to swap colors or continue. This ensures fair play at the highest levels of competition.</p>
-
-    <h2>Forbidden Moves (Professional Variants)</h2>
-
-    <p>Beyond Renju, other professional variants exist with varying levels of restrictions. On MOKU.IO, we use standard free-style rules with no forbidden moves by default, making the game accessible and easy to learn for all players. However, understanding Renju rules can deepen your appreciation of the game's strategic complexity.</p>
-
-    <h2>Game Etiquette</h2>
-
-    <ul>
-      <li>Play promptly and avoid unnecessary delays on your turn.</li>
-      <li>Do not disconnect intentionally to avoid a loss.</li>
-      <li>Be respectful to your opponent, win or lose.</li>
-      <li>If you realize you have lost, it is considered good sportsmanship to acknowledge the result.</li>
-    </ul>
-
-    <h2>Summary</h2>
-
-    <p>Gomoku is a game of pure strategy with no element of luck. Every move is a choice, and the best player wins through superior planning, pattern recognition, and tactical execution. Whether you are a complete beginner or a seasoned player, understanding these basic rules is the foundation for enjoying everything the game has to offer. Ready to play? Head back to the <a href="index.html">main page</a> and start a game!</p>
-
-  </div>
-
-  <!-- Korean Content -->
-  <div data-lang="ko">
-
-    <h1>오목 (고모쿠) 규칙</h1>
-
-    <p>고모쿠는 한국에서 <strong>오목</strong>(五目)으로, 일부 서양에서는 <strong>고방</strong>(Gobang)으로 알려진 세계에서 가장 오래되고 널리 즐기는 보드게임 중 하나입니다. 그 기원은 수천 년 전 고대 중국으로 거슬러 올라가며, 이후 동아시아 전역과 그 너머에서 사랑받는 게임이 되었습니다. 간단한 규칙에도 불구하고, 오목은 캐주얼 플레이어와 경쟁적인 게이머 모두를 사로잡는 놀라운 전략적 깊이를 제공합니다.</p>
-
-    <h2>바둑판</h2>
-
-    <p>오목은 <strong>15x15 격자</strong>의 교차선 위에서 진행됩니다. 체스나 체커와 달리, 돌은 칸 안이 아닌 선의 <strong>교차점</strong> 위에 놓습니다. 표준 바둑판에는 총 225개의 교차점이 있으며, 이 모든 곳에 돌을 놓을 수 있습니다. 일부 변형에서는 19x19 바둑판을 사용하기도 하지만, 15x15 바둑판이 경쟁 오목의 공식 표준이며 MOKU.IO에서도 이를 사용합니다.</p>
-
-    <div class="board-diagram">
-<pre>
-   A B C D E F G H I J K L M N O
-15 . . . . . . . . . . . . . . .
-14 . . . . . . . . . . . . . . .
-13 . . . . . . . . . . . . . . .
-12 . . . . . . . . . . . . . . .
-11 . . . . . . . X . . . . . . .
-10 . . . . . . X O . . . . . . .
- 9 . . . . . X O . . . . . . . .
- 8 . . . . X O . . . . . . . . .
- 7 . . . . O . . . . . . . . . .
- 6 . . . . . . . . . . . . . . .
- 5 . . . . . . . . . . . . . . .
- 4 . . . . . . . . . . . . . . .
- 3 . . . . . . . . . . . . . . .
- 2 . . . . . . . . . . . . . . .
- 1 . . . . . . . . . . . . . . .
-
-  X = 흑돌    O = 백돌
-  흑이 대각선으로 4개를 놓았습니다 - 하나만 더 놓으면 승리!
-</pre>
+      <p class="note">구현하지 않은 것: 대회용 오프닝 규칙(소스르프-8, 타라구치 등)과, 금수를 두면 지는 공식 처리. 여기서는 첫 수를 자유롭게 두고, 금수 자리는 아예 둘 수 없습니다.</p>
     </div>
+  </main>
 
-    <h2>돌</h2>
+  <footer>
+    <div class="footer-links">
+      <a href="rules.html" data-i18n="rules">Rules</a>
+      <a href="hall.html" data-i18n="hall_of_fame">Hall of Fame</a>
+      <a href="https://github.com/Jayyo/gomoku" rel="noopener">GitHub</a>
+    </div>
+    <p data-i18n="footer_note">A side project by Jayyo.</p>
+  </footer>
 
-    <p>두 명의 플레이어가 번갈아 가며 바둑판 위에 돌을 놓습니다. 한 플레이어는 <strong>흑돌</strong>을, 다른 플레이어는 <strong>백돌</strong>을 사용합니다. 바둑판 위에 놓인 돌은 게임이 끝날 때까지 이동하거나 제거할 수 없습니다. 이것은 게임 내내 말이 이동하는 체스와 같은 게임과의 핵심적인 차이점입니다.</p>
-
-    <h2>누가 먼저 두나요?</h2>
-
-    <p><strong>흑돌을 가진 플레이어가 항상 먼저</strong> 둡니다. 먼저 두는 것이 오목에서 상당한 전략적 이점을 제공하기 때문에, 대회에서는 이를 균형 잡기 위한 특별한 오프닝 규칙이 사용됩니다. MOKU.IO의 캐주얼 게임에서는 방을 만든 사람이 색을 선택하며, 흑돌이 항상 첫 번째 차례를 가집니다.</p>
-
-    <h2>게임 방법</h2>
-
-    <p>플레이어는 번갈아 가며 바둑판의 빈 교차점에 한 번에 하나의 돌을 놓습니다. 흑이 먼저 돌을 놓고, 그다음 백이 놓는 식으로 진행됩니다. 표준 오목에서는 패스가 없으며, 자신의 차례에 반드시 돌을 놓아야 합니다. 게임은 한 플레이어가 승리 조건을 달성하거나 바둑판이 완전히 채워질 때까지 계속됩니다.</p>
-
-    <h2>승리 조건</h2>
-
-    <p>목표는 간단합니다: 자신의 색 돌로 <strong>끊어지지 않는 5개의 연속된 줄</strong>을 먼저 만드는 것입니다. 이 줄은 네 가지 방향 중 어느 방향으로든 만들 수 있습니다:</p>
-
-    <ul>
-      <li><strong>가로</strong> - 같은 가로줄을 따라 5개의 돌이 연속으로 놓임</li>
-      <li><strong>세로</strong> - 같은 세로줄을 따라 5개의 돌이 연속으로 놓임</li>
-      <li><strong>대각선 (오름)</strong> - 왼쪽 아래에서 오른쪽 위로 대각선으로 5개의 돌이 놓임</li>
-      <li><strong>대각선 (내림)</strong> - 왼쪽 위에서 오른쪽 아래로 대각선으로 5개의 돌이 놓임</li>
-    </ul>
-
-    <p>다섯 개의 돌은 사이에 빈칸이나 상대방 돌 없이 <strong>연속적</strong>이어야 합니다. 한 플레이어가 5개의 연속 줄을 완성하면, 누구의 차례인지에 관계없이 즉시 승리합니다.</p>
-
-    <h2>무승부 조건</h2>
-
-    <p>바둑판의 225개 교차점이 모두 채워졌는데도 어느 플레이어도 5개 연속을 달성하지 못하면, 게임은 <strong>무승부</strong>로 끝납니다. 실제로 무승부는 상당히 드물며, 대부분의 게임은 바둑판이 가득 차기 훨씬 전에 끝납니다.</p>
-
-    <h2>장목 (6개 이상 연속)</h2>
-
-    <p>MOKU.IO에서 사용하는 <strong>자유 규칙</strong>에서는 6개 이상의 돌이 연속으로 놓이는 것(<strong>장목</strong>)도 승리로 인정됩니다. 그러나 렌주와 같은 일부 프로 규칙에서는 흑에게 장목이 금지되며 승리로 인정되지 않습니다. MOKU.IO에서는 5개 이상의 연속 돌이면 승리하는 자유 규칙을 사용합니다.</p>
-
-    <h2>렌주 규칙</h2>
-
-    <p><strong>렌주</strong>는 <strong>국제렌주연맹(RIF)</strong>이 공인한 오목의 프로 변형 규칙입니다. 자유 규칙 오목에서 증명된 선수(先手) 이점을 해결하기 위해 흑에게 제한을 부과하여 개발되었습니다. 렌주의 주요 규칙은 다음과 같습니다:</p>
-
-    <h3>흑의 금수</h3>
-
-    <p>렌주에서 흑(먼저 두는 플레이어)은 세 가지 유형의 <strong>금수</strong> 제한을 받습니다:</p>
-
-    <ul>
-      <li><strong>삼삼 (3-3)</strong> - 흑은 동시에 두 개의 열린 삼(양쪽 끝이 모두 열린 3개의 돌 줄)을 만드는 곳에 돌을 놓을 수 없습니다. 이는 흑이 너무 쉽게 막을 수 없는 이중 위협을 만드는 것을 방지합니다.</li>
-      <li><strong>사사 (4-4)</strong> - 흑은 동시에 두 개의 사(4개의 돌 줄)를 만드는 곳에 돌을 놓을 수 없습니다. 한쪽 또는 양쪽의 사가 한쪽 끝이 막혀 있더라도 사사는 금수입니다.</li>
-      <li><strong>장목 (6개 이상)</strong> - 흑은 6개 이상의 연속 돌 줄을 만들 수 없습니다. 흑에게는 정확히 5개의 연속만 승리로 인정됩니다.</li>
-    </ul>
-
-    <p>흑이 금수를 두면 <strong>흑이 즉시 패배</strong>합니다. 백에게는 금수가 없으며 삼삼, 사사, 장목을 자유롭게 만들 수 있습니다.</p>
-
-    <h3>렌주 오프닝 규칙</h3>
-
-    <p>게임의 균형을 더욱 맞추기 위해, 렌주 대회에서는 구조화된 오프닝 순서를 사용합니다. 가장 일반적인 것은 <strong>소시르프-8 규칙</strong>으로, 첫 번째 플레이어가 처음 세 개의 돌(흑 하나, 백 하나, 흑 하나)을 놓고, 두 번째 플레이어가 색을 바꾸거나 계속할 수 있습니다. 이를 통해 최고 수준의 경쟁에서 공정한 플레이를 보장합니다.</p>
-
-    <h2>금수 (프로 변형)</h2>
-
-    <p>렌주 외에도 다양한 수준의 제한을 가진 다른 프로 변형이 존재합니다. MOKU.IO에서는 기본적으로 금수가 없는 자유 규칙을 사용하여 모든 플레이어가 쉽게 접근하고 배울 수 있도록 합니다. 그러나 렌주 규칙을 이해하면 게임의 전략적 복잡성에 대한 이해가 깊어질 수 있습니다.</p>
-
-    <h2>게임 매너</h2>
-
-    <ul>
-      <li>자신의 차례에 신속하게 두고 불필요한 지연을 피하세요.</li>
-      <li>패배를 피하기 위해 의도적으로 연결을 끊지 마세요.</li>
-      <li>승패에 관계없이 상대방을 존중하세요.</li>
-      <li>패배를 인지했다면, 결과를 인정하는 것이 좋은 스포츠맨십입니다.</li>
-    </ul>
-
-    <h2>요약</h2>
-
-    <p>오목은 운의 요소가 전혀 없는 순수 전략 게임입니다. 모든 수는 선택이며, 최고의 플레이어가 우수한 계획, 패턴 인식, 전술적 실행을 통해 승리합니다. 완전한 초보자이든 숙련된 플레이어이든, 이러한 기본 규칙을 이해하는 것이 게임의 모든 것을 즐기기 위한 기초입니다. 게임할 준비가 되셨나요? <a href="index.html">메인 페이지</a>로 돌아가서 게임을 시작하세요!</p>
-
-  </div>
-
-  <div class="ad-container"></div>
-
-</div>
-
-<footer>
-  <div class="footer-links">
-    <a href="rules.html" data-i18n="rules">Rules</a>
-    <a href="strategy.html" data-i18n="strategy">Strategy</a>
-    <a href="faq.html" data-i18n="faq">FAQ</a>
-    <a href="hall.html" data-i18n="hall_of_fame">Hall of Fame</a>
-    <a href="about.html" data-i18n="about">About</a>
-    <a href="privacy.html" data-i18n="privacy">Privacy Policy</a>
-    <a href="terms.html" data-i18n="terms">Terms of Service</a>
-  </div>
-  <p data-i18n="copyright">&copy; 2026 MOKU.IO. All rights reserved.</p>
-</footer>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js?v=3"></script>
-<script src="js/i18n.js"></script>
-<script src="js/lang/en.js"></script>
-<script src="js/lang/ko.js"></script>
-<script src="js/shared.js"></script>
-<script src="js/sound.js"></script>
-<script>
-  function toggleSound() {
-    const on = Sound.toggle();
-    document.getElementById('sound-toggle').textContent = on ? '🔊' : '🔇';
-  }
-  document.addEventListener('DOMContentLoaded', () => {
-    I18n.init();
-    document.getElementById('sound-toggle').textContent = Sound.isEnabled() ? '🔊' : '🔇';
-  });
-</script>
-
+  <script src="js/i18n.js"></script>
+  <script src="js/lang/en.js"></script>
+  <script src="js/lang/ko.js"></script>
+  <script src="js/page.js"></script>
+  <script src="js/rules-page.js"></script>
 </body>
 </html>
