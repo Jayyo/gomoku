@@ -103,13 +103,14 @@
     return found.size;
   }
 
-  // Is the run through the black stone at (x, y) a straight four along (dx, dy)?
-  function isStraightFour(board, x, y, dx, dy) {
+  // Is the run through the black stone at (x, y) a straight four along (dx, dy)
+  // that includes the stone at offset `added`?
+  function isStraightFour(board, x, y, dx, dy, added) {
     let lo = 0;
     let hi = 0;
     while (at(board, x + dx * (lo - 1), y + dy * (lo - 1)) === BLACK) lo--;
     while (at(board, x + dx * (hi + 1), y + dy * (hi + 1)) === BLACK) hi++;
-    if (hi - lo !== 3) return false;
+    if (hi - lo !== 3 || added < lo || added > hi) return false;
     if (at(board, x + dx * (lo - 1), y + dy * (lo - 1)) !== null) return false;
     if (at(board, x + dx * (hi + 1), y + dy * (hi + 1)) !== null) return false;
     // Each end must complete exactly five
@@ -126,7 +127,9 @@
       const cy = y + dy * i;
       if (at(board, cx, cy) !== null) continue;
       board[cy][cx] = BLACK;
-      const straight = isStraightFour(board, x, y, dx, dy);
+      // The new stone has to be part of the straight four: a four that is already
+      // on the board is a four, not a three
+      const straight = isStraightFour(board, x, y, dx, dy, i);
       board[cy][cx] = null;
       // The stone that makes the straight four must itself be playable
       if (straight && !forbiddenReason(board, cx, cy)) return true;

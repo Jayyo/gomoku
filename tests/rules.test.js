@@ -135,6 +135,14 @@ test('exactly five wins even with a forbidden shape', () => {
 });
 
 test('four-three is allowed', () => {
+  // an open four across plus an open three down
+  expectReason([
+    '.........',
+    '....b....',
+    '....b....',
+    '.bbb*....',
+    '.........',
+  ], null);
   expectReason([
     '.........',
     '....b....',
