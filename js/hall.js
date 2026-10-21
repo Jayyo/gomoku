@@ -44,7 +44,7 @@
       const canDelete = storedTokens[entry.id];
       const betHtml = entry.bet_text ? `<div class="hall-bet"><span class="label">${I18n.t('hall_bet')}:</span> ${escapeHtml(entry.bet_text)}</div>` : '';
       const msgHtml = entry.message ? `<div class="hall-message">"${escapeHtml(entry.message)}"</div>` : '';
-      const rulesLabel = entry.rules_type === 'renju' ? I18n.t('renju_pro') : I18n.t('freestyle');
+      const rulesLabel = entry.rules_type === 'renju' ? I18n.t('renju') : I18n.t('freestyle');
       const dateStr = new Date(entry.created_at).toLocaleDateString();
 
       return `

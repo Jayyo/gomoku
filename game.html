@@ -41,9 +41,7 @@
         <span id="white-name">White</span>
       </div>
 
-      <div class="turn-indicator" id="turn-indicator" data-i18n="waiting">
-        Waiting...
-      </div>
+      <div class="turn-indicator" id="turn-indicator" role="status" aria-live="polite"></div>
 
       <!-- Bet display (shown when bet exists) -->
       <div class="game-bet-display hidden" id="bet-display">
@@ -51,9 +49,12 @@
         <div class="bet-content" id="bet-content"></div>
       </div>
 
-      <button class="btn btn-secondary btn-small mt-16" style="width:100%" onclick="leaveRoom()" data-i18n="leave_game">
-        Leave Game
-      </button>
+      <div class="local-controls hidden" id="local-controls">
+        <button type="button" class="btn btn-secondary btn-small" id="undo-btn" data-i18n="undo">Undo</button>
+        <button type="button" class="btn btn-primary btn-small" id="restart-btn" data-i18n="new_game">New game</button>
+      </div>
+
+      <button type="button" class="btn btn-secondary btn-small btn-block mt-16" id="leave-btn" data-i18n="leave_game">Leave Game</button>
 
       <!-- Taunt panel (shown only for winner) -->
       <div class="taunt-panel hidden" id="taunt-panel">
@@ -85,6 +86,8 @@
   <script src="js/shared.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/page.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/local-game.js"></script>
   <script src="js/taunt.js"></script>
   <script src="js/game.js"></script>
 </body>

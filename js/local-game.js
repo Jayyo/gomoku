@@ -1,172 +1,288 @@
-// Pass-and-play on one device, no server involved
-(function() {
+// Offline games on one device: pass-and-play, or against the computer (js/ai.js).
+// Nothing here talks to the server.
+const LocalGame = (() => {
+  const LEVELS = ['easy', 'normal', 'hard'];
+  const MIN_THINK_MS = 350;
+
+  let mode = 'local';
+  let rules = 'freestyle';
+  let level = 'normal';
+  let humanColor = 'black';
   let board = createEmptyBoard();
-  let currentTurn = 'black';
-  let moveCount = 0;
-  let gameOver = false;
-  let rulesType = 'freestyle'; // 'freestyle' or 'renju'
+  let history = [];
+  let result = null; // null while playing, then { winner } (winner null for a draw)
+  let thinking = false;
+  let request = 0; // bumped on restart/undo so a late computer move is ignored
 
-  function init() {
-    // Get rules from URL params
-    const params = new URLSearchParams(window.location.search);
-    rulesType = params.get('rules') || 'freestyle';
+  let worker; // undefined until first use, null if workers are unavailable
+  let jobId = 0;
 
-    const boardEl = document.getElementById('board');
-    renderBoard(boardEl, handleCellClick, onHoverEnter, onHoverLeave);
-    updateUI();
+  function start(params) {
+    mode = params.get('mode') === 'ai' ? 'ai' : 'local';
+    rules = params.get('rules') === 'renju' ? 'renju' : 'freestyle';
+    level = LEVELS.includes(params.get('level')) ? params.get('level') : 'normal';
+    humanColor = params.get('color') === 'white' ? 'white' : 'black';
 
-    // Restart button
-    const restartBtn = document.getElementById('restart-btn');
-    if (restartBtn) {
-      restartBtn.addEventListener('click', restart);
-    }
+    document.getElementById('local-controls').classList.remove('hidden');
+    document.getElementById('bet-display').remove();
+    document.getElementById('taunt-panel').remove();
+    document.getElementById('undo-btn').addEventListener('click', undo);
+    document.getElementById('restart-btn').addEventListener('click', restart);
+    document.getElementById('leave-btn').addEventListener('click', () => {
+      window.location.href = 'index.html';
+    });
+    document.addEventListener('langchange', updatePanel);
 
-    // Rules display
-    const rulesDisplay = document.getElementById('rules-display');
-    if (rulesDisplay) {
-      rulesDisplay.textContent = rulesType === 'renju' ? I18n.t('renju_pro') : I18n.t('freestyle');
-    }
-
-    // Show forbidden moves for renju
-    if (rulesType === 'renju' && currentTurn === 'black') {
-      showForbiddenMarkers(board);
-    }
+    restart();
   }
 
-  // Run immediately if DOM already loaded (dynamic script injection), otherwise wait
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+  function toMove() {
+    return history.length % 2 === 0 ? 'black' : 'white';
   }
 
-  function handleCellClick(x, y) {
-    if (gameOver) return;
-    if (board[y][x]) return;
+  function isHumanTurn() {
+    return mode === 'local' || toMove() === humanColor;
+  }
 
-    // Renju check
-    if (rulesType === 'renju' && currentTurn === 'black') {
+  function restart() {
+    request++;
+    thinking = false;
+    board = createEmptyBoard();
+    history = [];
+    result = null;
+    closeResult();
+    redraw();
+    afterMove();
+  }
+
+  function redraw() {
+    const svg = document.getElementById('win-line-svg');
+    if (svg) svg.remove();
+    renderBoard(document.getElementById('board'), onCellClick, onHoverEnter, removeHoverPreview);
+    history.forEach((m, i) => placeStoneVisual(m.x, m.y, m.color, i === history.length - 1));
+  }
+
+  function onCellClick(x, y) {
+    if (result || thinking || !isHumanTurn() || board[y][x]) return;
+    const color = toMove();
+    if (rules === 'renju' && color === 'black') {
       const reason = Rules.forbiddenReason(board, x, y);
       if (reason) {
         showToast(forbiddenMessage(reason));
         return;
       }
     }
-
-    board[y][x] = currentTurn;
-    moveCount++;
-
-    document.querySelectorAll('.stone.last-move').forEach(el => el.classList.remove('last-move'));
-    placeStoneVisual(x, y, currentTurn, true);
-    Sound.playStone();
-
-    const winCoords = Rules.winningLine(board, x, y, rulesType);
-    if (winCoords) {
-      gameOver = true;
-      drawWinLine(winCoords);
-      showLocalWinModal(currentTurn);
-      Sound.playWin();
-      if (rulesType === 'renju') clearForbiddenMarkers();
-      return;
-    }
-
-    if (moveCount >= BOARD_SIZE * BOARD_SIZE) {
-      gameOver = true;
-      showLocalWinModal(null);
-      return;
-    }
-
-    currentTurn = currentTurn === 'black' ? 'white' : 'black';
-    updateUI();
-
-    // Update forbidden moves for renju
-    if (rulesType === 'renju') {
-      clearForbiddenMarkers();
-      if (currentTurn === 'black') {
-        showForbiddenMarkers(board);
-      }
-    }
+    play(x, y, color);
   }
 
   function onHoverEnter(cell, x, y) {
-    if (gameOver || board[y][x]) return;
-    const preview = document.createElement('div');
-    preview.className = `hover-preview ${currentTurn}`;
-    cell.appendChild(preview);
+    if (result || thinking || !isHumanTurn() || board[y][x]) return;
+    if (cell.querySelector('.forbidden-marker')) return;
+    showHoverPreview(cell, x, y, board, toMove(), true);
   }
 
-  function onHoverLeave(cell) {
-    removeHoverPreview(cell);
+  function play(x, y, color) {
+    board[y][x] = color;
+    history.push({ x, y, color });
+    document.querySelectorAll('.stone.last-move').forEach(el => el.classList.remove('last-move'));
+    placeStoneVisual(x, y, color, true);
+    Sound.playStone();
+    applyImpactEffects(x, y, color, board);
+
+    const line = Rules.winningLine(board, x, y, rules);
+    if (line) finish(color, line);
+    else if (history.length === BOARD_SIZE * BOARD_SIZE) finish(null, null);
+    else afterMove();
   }
 
-  function updateUI() {
-    const blackInfo = document.getElementById('black-info');
-    const whiteInfo = document.getElementById('white-info');
-    const turnIndicator = document.getElementById('turn-indicator');
+  function afterMove() {
+    clearForbiddenMarkers();
+    updatePanel();
+    if (result) return;
+    if (rules === 'renju' && toMove() === 'black' && isHumanTurn()) showForbiddenMarkers(board);
+    if (!isHumanTurn()) computerTurn();
+  }
 
-    if (blackInfo) blackInfo.classList.toggle('active', currentTurn === 'black' && !gameOver);
-    if (whiteInfo) whiteInfo.classList.toggle('active', currentTurn === 'white' && !gameOver);
+  async function computerTurn() {
+    const id = ++request;
+    thinking = true;
+    updatePanel();
+    const started = Date.now();
+    const move = await think(toMove());
+    const left = MIN_THINK_MS - (Date.now() - started);
+    if (left > 0) await new Promise(resolve => setTimeout(resolve, left));
+    if (id !== request) return;
+    thinking = false;
+    if (move) play(move.x, move.y, toMove());
+    else finish(null, null);
+  }
 
-    if (turnIndicator && !gameOver) {
-      turnIndicator.className = 'turn-indicator';
-      turnIndicator.classList.add(currentTurn === 'black' ? 'black-turn' : 'white-turn');
-      turnIndicator.textContent = `${currentTurn === 'black' ? I18n.t('black') : I18n.t('white')} - ${I18n.t('your_turn')}`;
+  // Ask the worker for a move; fall back to the main thread if workers can't run (e.g. file://)
+  function think(color) {
+    const job = { board: board.map(row => row.slice()), color, rules, level };
+    const direct = () => GomokuAI.chooseMove(job.board, color, { rules, level });
+
+    if (worker === undefined) {
+      try {
+        worker = new Worker('js/ai-worker.js');
+      } catch (e) {
+        worker = null;
+      }
     }
+    if (!worker) return new Promise(resolve => setTimeout(() => resolve(direct()), 0));
+
+    const w = worker;
+    const id = ++jobId;
+    return new Promise((resolve) => {
+      const done = (move) => {
+        w.removeEventListener('message', onMessage);
+        w.removeEventListener('error', onError);
+        resolve(move);
+      };
+      const onMessage = (e) => {
+        if (e.data.id === id) done(e.data.move);
+      };
+      const onError = (e) => {
+        if (e.preventDefault) e.preventDefault();
+        w.terminate();
+        worker = null;
+        done(direct());
+      };
+      w.addEventListener('message', onMessage);
+      w.addEventListener('error', onError);
+      w.postMessage({ id, ...job });
+    });
   }
 
-  function showLocalWinModal(winner) {
-    let title, subtitle;
-    if (!winner) {
-      title = I18n.t('draw');
-      subtitle = I18n.t('board_full');
+  function undo() {
+    if (!canUndo()) return;
+    request++;
+    thinking = false;
+    if (mode === 'local') {
+      history.pop();
     } else {
-      title = (winner === 'black' ? I18n.t('black') : I18n.t('white')) + ' ' + I18n.t('victory');
-      subtitle = I18n.t('congratulations');
+      // Take back the computer's reply too, so it is the player's turn again
+      while (history.length) {
+        const last = history.pop();
+        if (last.color === humanColor) break;
+      }
     }
-
-    const overlay = document.createElement('div');
-    overlay.className = `modal-overlay ${winner ? (winner === 'black' ? 'win-black' : 'win-white') : ''}`;
-    overlay.innerHTML = `
-      <div class="modal ${winner ? 'victory-modal' : ''}">
-        <h2 class="${winner ? 'victory-text' : ''}">${title}</h2>
-        <p class="result">${subtitle}</p>
-        <div class="modal-actions">
-          <button class="btn btn-primary btn-glow" onclick="location.reload()">
-            ${I18n.t('restart')}
-          </button>
-          <button class="btn btn-secondary" onclick="window.location.href='index.html'">
-            ${I18n.t('back_to_lobby')}
-          </button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-  }
-
-  function restart() {
     board = createEmptyBoard();
-    currentTurn = 'black';
-    moveCount = 0;
-    gameOver = false;
-
-    // Remove win line
-    const svg = document.getElementById('win-line-svg');
-    if (svg) svg.remove();
-
-    // Remove modal
-    const modal = document.querySelector('.modal-overlay');
-    if (modal) modal.remove();
-
-    // Re-render board
-    const boardEl = document.getElementById('board');
-    renderBoard(boardEl, handleCellClick, onHoverEnter, onHoverLeave);
-    updateUI();
-
-    if (rulesType === 'renju') {
-      showForbiddenMarkers(board);
-    }
+    history.forEach(m => { board[m.y][m.x] = m.color; });
+    result = null;
+    closeResult();
+    redraw();
+    afterMove();
   }
 
-  // Expose restart globally
-  window.restartLocalGame = restart;
+  function canUndo() {
+    return mode === 'local' ? history.length > 0 : history.some(m => m.color === humanColor);
+  }
+
+  function finish(winner, line) {
+    result = { winner };
+    thinking = false;
+    clearForbiddenMarkers();
+    updatePanel();
+    if (line) drawWinLine(line);
+
+    const humanWon = mode === 'local' ? winner !== null : winner === humanColor;
+    if (winner && humanWon) {
+      Sound.playWin();
+      if (mode === 'ai') showConfetti();
+    } else if (winner) {
+      Sound.playLose();
+    }
+    // Let the winning line show before the dialog covers the board
+    setTimeout(() => {
+      if (result) showResult(winner);
+    }, line ? 900 : 0);
+  }
+
+  function resultTitle(winner) {
+    if (!winner) return I18n.t('draw');
+    if (mode === 'ai') return I18n.t(winner === humanColor ? 'you_win' : 'computer_wins');
+    return I18n.t(winner === 'black' ? 'black_wins' : 'white_wins');
+  }
+
+  function showResult(winner) {
+    closeResult();
+    const humanLost = mode === 'ai' && winner && winner !== humanColor;
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'result-modal';
+
+    const modal = document.createElement('div');
+    modal.className = `modal ${winner ? (humanLost ? 'defeat-modal' : 'victory-modal') : ''}`;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+
+    const title = document.createElement('h2');
+    title.className = winner ? (humanLost ? 'defeat-text' : 'victory-text') : '';
+    title.textContent = resultTitle(winner);
+    const detail = document.createElement('p');
+    detail.className = 'result';
+    detail.textContent = winner ? I18n.t('moves_played').replace('{n}', history.length) : I18n.t('board_full');
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    const again = button(I18n.t('play_again'), 'btn btn-primary btn-glow', restart);
+    actions.append(
+      again,
+      button(I18n.t('view_board'), 'btn btn-secondary', closeResult),
+      button(I18n.t('back_to_lobby'), 'btn btn-secondary', () => { window.location.href = 'index.html'; })
+    );
+
+    modal.append(title, detail, actions);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    again.focus();
+  }
+
+  function button(label, className, onClick) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = className;
+    el.textContent = label;
+    el.addEventListener('click', onClick);
+    return el;
+  }
+
+  function closeResult() {
+    const modal = document.getElementById('result-modal');
+    if (modal) modal.remove();
+  }
+
+  function playerLabel(color) {
+    if (mode === 'local') return I18n.t(color);
+    if (color === humanColor) return I18n.t('you');
+    return `${I18n.t('computer')} · ${I18n.t('level_' + level)}`;
+  }
+
+  function updatePanel() {
+    const badge = document.getElementById('rules-badge');
+    badge.textContent = rules === 'renju' ? I18n.t('renju') : I18n.t('freestyle');
+    badge.className = `rules-badge ${rules}`;
+    document.getElementById('black-name').textContent = playerLabel('black');
+    document.getElementById('white-name').textContent = playerLabel('white');
+
+    const turn = toMove();
+    document.getElementById('black-info').classList.toggle('active', !result && turn === 'black');
+    document.getElementById('white-info').classList.toggle('active', !result && turn === 'white');
+
+    const indicator = document.getElementById('turn-indicator');
+    if (result) {
+      indicator.className = 'turn-indicator';
+      indicator.textContent = resultTitle(result.winner);
+    } else if (mode === 'ai') {
+      indicator.className = `turn-indicator ${thinking ? 'opponent-turn' : 'my-turn'}`;
+      indicator.textContent = I18n.t(thinking ? 'thinking' : 'your_turn');
+    } else {
+      indicator.className = `turn-indicator ${turn}-turn`;
+      indicator.textContent = I18n.t(turn === 'black' ? 'black_to_move' : 'white_to_move');
+    }
+    document.getElementById('undo-btn').disabled = !canUndo();
+  }
+
+  return { start };
 })();

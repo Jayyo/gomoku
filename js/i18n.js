@@ -33,6 +33,8 @@ const I18n = (() => {
     if (btn) btn.textContent = lang === 'en' ? '\uD55C\uAD6D\uC5B4' : 'English';
     // Update html lang attribute
     document.documentElement.lang = lang === 'ko' ? 'ko' : 'en';
+    // Text set from code (turn indicator, player names) listens for this
+    document.dispatchEvent(new CustomEvent('langchange', { detail: { lang } }));
   }
 
   function getLang() { return currentLang; }

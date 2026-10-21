@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Omok · Gomoku in the browser</title>
-  <meta name="description" content="Gomoku (오목) in the browser with freestyle and Renju rules. Pass-and-play on one device or invite a friend to an online room.">
+  <meta name="description" content="Gomoku (오목) in the browser with freestyle and Renju rules. Play the computer, pass-and-play on one device, or invite a friend to an online room.">
   <meta property="og:title" content="Omok · Gomoku in the browser">
-  <meta property="og:description" content="Gomoku (오목) in the browser with freestyle and Renju rules.">
+  <meta property="og:description" content="Gomoku (오목) in the browser: play the computer or a friend, freestyle or Renju rules.">
   <meta property="og:type" content="website">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="theme-color" content="#0F172A">
@@ -30,6 +30,52 @@
   </div>
 
   <div class="container">
+    <div class="mode-grid">
+      <section class="card mode-card">
+        <h2 data-i18n="vs_computer">Play the computer</h2>
+        <p class="card-desc" data-i18n="vs_computer_desc">The computer runs in your browser, so this works offline too.</p>
+        <div class="form-row">
+          <label for="ai-level" data-i18n="level">Level</label>
+          <select id="ai-level">
+            <option value="easy" data-i18n="level_easy">Easy</option>
+            <option value="normal" data-i18n="level_normal" selected>Normal</option>
+            <option value="hard" data-i18n="level_hard">Hard</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="ai-color" data-i18n="your_color">You play</label>
+          <select id="ai-color">
+            <option value="black" data-i18n="color_black">Black (moves first)</option>
+            <option value="white" data-i18n="color_white">White</option>
+            <option value="random" data-i18n="color_random">Random</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="ai-rules" data-i18n="rules_type">Rules</label>
+          <select id="ai-rules">
+            <option value="freestyle" data-i18n="freestyle">Freestyle</option>
+            <option value="renju" data-i18n="renju">Renju</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-primary btn-glow btn-block" id="ai-start" data-i18n="start_game">Start</button>
+      </section>
+
+      <section class="card mode-card">
+        <h2 data-i18n="pass_and_play">Two players, one screen</h2>
+        <p class="card-desc" data-i18n="pass_and_play_desc">Take turns on the same device. No internet needed.</p>
+        <div class="form-row">
+          <label for="local-rules" data-i18n="rules_type">Rules</label>
+          <select id="local-rules">
+            <option value="freestyle" data-i18n="freestyle">Freestyle</option>
+            <option value="renju" data-i18n="renju">Renju</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-secondary btn-block" id="local-start" data-i18n="start_game">Start</button>
+      </section>
+    </div>
+
+    <h2 class="section-title" data-i18n="online_title">Play a friend online</h2>
+
     <!-- Nickname -->
     <div class="nickname-section">
       <input type="text" id="nickname" data-i18n="nickname_placeholder" placeholder="Enter your nickname" maxlength="20">
@@ -39,36 +85,23 @@
     <div class="lobby-grid">
       <div class="card">
         <h2 data-i18n="create_room">Create Room</h2>
-        <p style="color:var(--text-dim);margin-bottom:16px" data-i18n="create_room_desc">Start a new game and invite your friend with a room code.</p>
-        <button class="btn btn-primary btn-glow" id="create-btn" style="width:100%" data-i18n="create_room">Create Room</button>
+        <p class="card-desc" data-i18n="create_room_desc">Start a new game and invite your friend with a room code.</p>
+        <button type="button" class="btn btn-primary btn-block" id="create-btn" data-i18n="create_room">Create Room</button>
       </div>
 
       <div class="card">
         <h2 data-i18n="join_room">Join Room</h2>
-        <p style="color:var(--text-dim);margin-bottom:16px" data-i18n="join_room_desc">Enter the 6-digit room code from your friend.</p>
+        <p class="card-desc" data-i18n="join_room_desc">Enter the 6-character room code from your friend.</p>
         <div class="join-row">
-          <input type="text" id="join-code" data-i18n="join_code_placeholder" placeholder="Enter code (e.g. ABC123)" maxlength="6" style="text-transform:uppercase;letter-spacing:2px;font-family:var(--font-heading)">
-          <button class="btn btn-primary" id="join-btn" data-i18n="join_btn">Join</button>
+          <input type="text" id="join-code" class="code-input" data-i18n="join_code_placeholder" placeholder="Enter code (e.g. ABC123)" maxlength="6">
+          <button type="button" class="btn btn-primary" id="join-btn" data-i18n="join_btn">Join</button>
         </div>
-      </div>
-    </div>
-
-    <!-- Local Play -->
-    <div class="local-card">
-      <h2 data-i18n="local_play">Practice Solo</h2>
-      <p style="color:var(--text-dim);margin-bottom:16px" data-i18n="local_play_desc">Play locally on the same device. No internet needed.</p>
-      <div class="flex gap-8" style="justify-content:center;align-items:center;flex-wrap:wrap;">
-        <select id="local-rules" style="max-width:180px">
-          <option value="freestyle" data-i18n="freestyle">Freestyle</option>
-          <option value="renju" data-i18n="renju_pro">Renju (Pro)</option>
-        </select>
-        <button class="btn btn-secondary" id="local-btn" data-i18n="start_local">Start Practice</button>
       </div>
     </div>
 
     <!-- Room List -->
     <div class="room-list">
-      <h2 style="margin-bottom:16px" data-i18n="open_rooms">Open Rooms</h2>
+      <h2 data-i18n="open_rooms">Open Rooms</h2>
       <div id="room-list">
         <p class="empty-msg" data-i18n="loading_rooms">Loading rooms...</p>
       </div>
@@ -83,7 +116,7 @@
         <label data-i18n="rules_type">Rules</label>
         <select id="modal-rules">
           <option value="freestyle" data-i18n="freestyle">Freestyle</option>
-          <option value="renju" data-i18n="renju_pro">Renju (Pro)</option>
+          <option value="renju" data-i18n="renju">Renju</option>
         </select>
       </div>
       <div class="form-group">

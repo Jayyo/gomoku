@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const createBtn = document.getElementById('create-btn');
   const joinCodeInput = document.getElementById('join-code');
   const joinBtn = document.getElementById('join-btn');
-  const localBtn = document.getElementById('local-btn');
 
   if (nickname) nicknameInput.value = nickname;
 
@@ -40,13 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Local play button
-  if (localBtn) {
-    localBtn.addEventListener('click', () => {
-      const rules = document.getElementById('local-rules').value;
-      window.location.href = `game.html?mode=local&rules=${rules}`;
-    });
-  }
+  setupOfflineModes();
 
   // Close modal on outside click
   document.getElementById('create-modal').addEventListener('click', (e) => {
@@ -64,7 +57,36 @@ document.addEventListener('DOMContentLoaded', () => {
   subscribeToRooms();
 });
 
-// generateCode() is now in shared.js
+// Computer and pass-and-play games need no server
+function setupOfflineModes() {
+  const fields = { level: 'ai-level', color: 'ai-color', rules: 'ai-rules', localRules: 'local-rules' };
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem('omok_offline_settings')) || {};
+  } catch (e) {
+    saved = {};
+  }
+  for (const [key, id] of Object.entries(fields)) {
+    const select = document.getElementById(id);
+    if (saved[key] && [...select.options].some(o => o.value === saved[key])) select.value = saved[key];
+  }
+  const save = () => {
+    const values = {};
+    for (const [key, id] of Object.entries(fields)) values[key] = document.getElementById(id).value;
+    localStorage.setItem('omok_offline_settings', JSON.stringify(values));
+    return values;
+  };
+
+  document.getElementById('ai-start').addEventListener('click', () => {
+    const v = save();
+    const color = v.color === 'random' ? (Math.random() < 0.5 ? 'black' : 'white') : v.color;
+    window.location.href = `game.html?mode=ai&level=${v.level}&color=${color}&rules=${v.rules}`;
+  });
+  document.getElementById('local-start').addEventListener('click', () => {
+    const v = save();
+    window.location.href = `game.html?mode=local&rules=${v.localRules}`;
+  });
+}
 
 async function createRoom() {
   if (!nickname) {
@@ -225,7 +247,7 @@ function renderRooms(rooms) {
   }
 
   roomListEl.innerHTML = rooms.map(room => {
-    const rulesLabel = room.rules_type ? (room.rules_type === 'renju' ? I18n.t('renju_pro') : I18n.t('freestyle')) : I18n.t('freestyle');
+    const rulesLabel = room.rules_type ? (room.rules_type === 'renju' ? I18n.t('renju') : I18n.t('freestyle')) : I18n.t('freestyle');
     const betIcon = room.bet_text ? ' ⚔' : '';
     return `
       <div class="room-item">

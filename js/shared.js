@@ -190,3 +190,137 @@ function generateCode() {
   }
   return code;
 }
+
+// Returns { count, coords } for the longest consecutive chain including (x, y) for given player
+function getMaxConsecutive(x, y, player, boardState) {
+  const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
+  let bestCount = 1;
+  let bestCoords = [{ x, y }];
+
+  for (const [dx, dy] of directions) {
+    const coords = [{ x, y }];
+
+    // Forward
+    for (let i = 1; i < BOARD_SIZE; i++) {
+      const nx = x + dx * i;
+      const ny = y + dy * i;
+      if (nx < 0 || nx >= BOARD_SIZE || ny < 0 || ny >= BOARD_SIZE) break;
+      if (boardState[ny][nx] !== player) break;
+      coords.push({ x: nx, y: ny });
+    }
+
+    // Backward
+    for (let i = 1; i < BOARD_SIZE; i++) {
+      const nx = x - dx * i;
+      const ny = y - dy * i;
+      if (nx < 0 || nx >= BOARD_SIZE || ny < 0 || ny >= BOARD_SIZE) break;
+      if (boardState[ny][nx] !== player) break;
+      coords.push({ x: nx, y: ny });
+    }
+
+    if (coords.length > bestCount) {
+      bestCount = coords.length;
+      bestCoords = coords;
+    }
+  }
+
+  return { count: bestCount, coords: bestCoords };
+}
+
+// Apply visual + audio impact effects based on consecutive stone count
+function applyImpactEffects(x, y, player, boardState) {
+  const { count, coords } = getMaxConsecutive(x, y, player, boardState);
+  const boardEl = document.getElementById('board');
+
+  // Determine impact level: 1=normal, 2=3-chain, 3=4-chain, 4=5+ (win)
+  let level = 1;
+  if (count >= 5) level = 4;
+  else if (count === 4) level = 3;
+  else if (count === 3) level = 2;
+
+  // Play impact sound
+  Sound.playImpact(level);
+
+  // Add ripple to placed stone (always)
+  const placedStone = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"] .stone`);
+  if (placedStone) {
+    placedStone.classList.add('impact-ripple');
+    setTimeout(() => placedStone.classList.remove('impact-ripple'), 700);
+  }
+
+  if (level >= 2) {
+    // Add chain-glow to all stones in the chain
+    coords.forEach(({ x: cx, y: cy }) => {
+      const stone = document.querySelector(`.cell[data-x="${cx}"][data-y="${cy}"] .stone`);
+      if (stone) {
+        stone.classList.add('chain-glow');
+        setTimeout(() => stone.classList.remove('chain-glow'), 1800);
+      }
+    });
+
+    // Add board impact class
+    if (boardEl) {
+      const impactClass = `impact-${level}`;
+      boardEl.classList.remove('impact-2', 'impact-3', 'impact-4');
+      // Force reflow to restart animation
+      void boardEl.offsetWidth;
+      boardEl.classList.add(impactClass);
+      setTimeout(() => boardEl.classList.remove(impactClass), level === 4 ? 800 : 600);
+    }
+  }
+
+  // Level 4 (win): massive effects
+  if (level === 4) {
+    // Screen flash
+    const flash = document.createElement('div');
+    flash.className = 'screen-flash';
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 500);
+
+    // Shockwave ring from winning stone
+    const cell = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+    if (cell) {
+      for (let i = 0; i < 3; i++) {
+        setTimeout(() => {
+          const ring = document.createElement('div');
+          ring.className = 'shockwave-ring';
+          ring.style.left = '50%';
+          ring.style.top = '50%';
+          cell.appendChild(ring);
+          setTimeout(() => ring.remove(), 900);
+        }, i * 200);
+      }
+    }
+
+    // Winning neon pulse on all 5 stones
+    coords.forEach(({ x: cx, y: cy }) => {
+      const stone = document.querySelector(`.cell[data-x="${cx}"][data-y="${cy}"] .stone`);
+      if (stone) {
+        stone.classList.add('winning-impact-stone');
+        setTimeout(() => stone.classList.remove('winning-impact-stone'), 4000);
+      }
+    });
+  }
+}
+
+function showConfetti() {
+  const container = document.createElement('div');
+  container.className = 'confetti-container';
+  const colors = ['#22D3EE', '#10B981', '#F59E0B', '#A855F7', '#EF4444', '#EC4899'];
+
+  for (let i = 0; i < 60; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+    confetti.style.left = Math.random() * 100 + '%';
+    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.animationDuration = (2 + Math.random() * 3) + 's';
+    confetti.style.animationDelay = Math.random() * 2 + 's';
+    confetti.style.width = (6 + Math.random() * 8) + 'px';
+    confetti.style.height = (6 + Math.random() * 8) + 'px';
+    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    container.appendChild(confetti);
+  }
+
+  document.body.appendChild(container);
+  setTimeout(() => container.remove(), 5000);
+}
