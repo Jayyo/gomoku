@@ -71,6 +71,7 @@ const OnlineGame = (() => {
   }
 
   function myName() {
+    if (!seat) return null;
     return seat === 'host' ? room.host_name : room.guest_name;
   }
 
@@ -119,7 +120,8 @@ const OnlineGame = (() => {
         }
         const last = moves[moves.length - 1];
         const line = last && Rules.winningLine(board, last.x, last.y, room.rules_type);
-        if (line && !result) finish(last.player, line, 'five', live);
+        if (line && result) drawWinLine(line);
+        else if (line) finish(last.player, line, 'five', live);
         else if (moves.length === BOARD_SIZE * BOARD_SIZE && !result) finish(null, null, 'draw', live);
         else if (room.status === 'finished' && !result) finish(room.winner, null, room.winner ? 'forfeit' : 'draw', live);
         updatePanel();
