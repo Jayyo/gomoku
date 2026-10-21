@@ -2,14 +2,28 @@
 const BOARD_SIZE = Rules.SIZE;
 const STAR_POINTS = [[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]];
 
+// Point names as on a printed board: columns A-O, rows 15 (top) to 1
+function pointName(x, y) {
+  return `${'ABCDEFGHIJKLMNO'[x]}${BOARD_SIZE - y}`;
+}
+
+// Builds the 15x15 grid. Mouse/touch click a point; with the keyboard, arrows move
+// a cursor and Enter or Space plays there.
 function renderBoard(boardEl, onCellClick, onMouseEnter, onMouseLeave) {
   boardEl.innerHTML = '';
+  boardEl.tabIndex = 0;
+  boardEl.setAttribute('role', 'grid');
+  boardEl.setAttribute('aria-label', I18n.t('board_label'));
+
   for (let y = 0; y < BOARD_SIZE; y++) {
     for (let x = 0; x < BOARD_SIZE; x++) {
       const cell = document.createElement('div');
       cell.className = 'cell';
+      cell.id = `point-${x}-${y}`;
       cell.dataset.x = x;
       cell.dataset.y = y;
+      cell.setAttribute('role', 'gridcell');
+      cell.setAttribute('aria-label', pointName(x, y));
 
       if (STAR_POINTS.some(([sx, sy]) => sx === x && sy === y)) {
         cell.classList.add('star-point');
@@ -18,13 +32,42 @@ function renderBoard(boardEl, onCellClick, onMouseEnter, onMouseLeave) {
         cell.appendChild(dot);
       }
 
-      cell.addEventListener('click', () => onCellClick(x, y));
+      cell.addEventListener('click', () => {
+        moveCursor(boardEl, x, y);
+        onCellClick(x, y);
+      });
       if (onMouseEnter) cell.addEventListener('mouseenter', () => onMouseEnter(cell, x, y));
       if (onMouseLeave) cell.addEventListener('mouseleave', () => onMouseLeave(cell));
 
       boardEl.appendChild(cell);
     }
   }
+
+  const cursor = boardEl.dataset.cursor ? boardEl.dataset.cursor.split(',').map(Number) : [7, 7];
+  moveCursor(boardEl, cursor[0], cursor[1]);
+  // Assigned rather than added, so re-rendering the same board doesn't stack handlers
+  boardEl.onkeydown = (e) => {
+    const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    const [cx, cy] = boardEl.dataset.cursor.split(',').map(Number);
+    if (step) {
+      e.preventDefault();
+      const clamp = v => Math.max(0, Math.min(BOARD_SIZE - 1, v));
+      moveCursor(boardEl, clamp(cx + step[0]), clamp(cy + step[1]));
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onCellClick(cx, cy);
+    }
+  };
+}
+
+function moveCursor(boardEl, x, y) {
+  const old = boardEl.querySelector('.cell.cursor');
+  if (old) old.classList.remove('cursor');
+  const cell = boardEl.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+  if (!cell) return;
+  cell.classList.add('cursor');
+  boardEl.dataset.cursor = `${x},${y}`;
+  boardEl.setAttribute('aria-activedescendant', cell.id);
 }
 
 function placeStoneVisual(x, y, player, isLast) {
@@ -52,13 +95,7 @@ function placeStoneVisual(x, y, player, isLast) {
   }
 
   if (isLast) stone.classList.add('last-move');
-}
-
-function removeStoneVisual(x, y) {
-  const cell = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
-  if (!cell) return;
-  const stone = cell.querySelector('.stone');
-  if (stone) stone.remove();
+  cell.setAttribute('aria-label', `${pointName(x, y)}, ${I18n.t(player)}`);
 }
 
 let winLineCoords = null;

@@ -127,5 +127,6 @@ I18n.register('ko', {
   hall_failed: '명예의 전당을 불러오지 못했습니다.',
   hall_confirm_delete: '이 기록을 삭제할까요?',
   hall_delete_failed: '기록을 삭제하지 못했습니다.',
-  hall_deleted: '삭제했습니다.'
+  hall_deleted: '삭제했습니다.',
+  board_label: '바둑판. 방향키로 움직이고 Enter로 돌을 놓습니다.'
 });

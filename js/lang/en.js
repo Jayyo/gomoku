@@ -127,5 +127,6 @@ I18n.register('en', {
   hall_failed: 'Couldn\'t load the Hall of Fame.',
   hall_confirm_delete: 'Delete this entry?',
   hall_delete_failed: 'Couldn\'t delete the entry.',
-  hall_deleted: 'Deleted.'
+  hall_deleted: 'Deleted.',
+  board_label: 'Board. Arrow keys move, Enter places a stone.'
 });
