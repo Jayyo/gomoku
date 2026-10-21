@@ -74,38 +74,41 @@
       </section>
     </div>
 
-    <h2 class="section-title" data-i18n="online_title">Play a friend online</h2>
+    <section id="online-section">
+      <h2 class="section-title" data-i18n="online_title">Play a friend online</h2>
+      <p class="online-status hidden" id="online-status" role="status"></p>
 
-    <!-- Nickname -->
-    <div class="nickname-section">
-      <input type="text" id="nickname" data-i18n="nickname_placeholder" placeholder="Enter your nickname" maxlength="20">
-    </div>
-
-    <!-- Create / Join -->
-    <div class="lobby-grid">
-      <div class="card">
-        <h2 data-i18n="create_room">Create Room</h2>
-        <p class="card-desc" data-i18n="create_room_desc">Start a new game and invite your friend with a room code.</p>
-        <button type="button" class="btn btn-primary btn-block" id="create-btn" data-i18n="create_room">Create Room</button>
+      <!-- Nickname -->
+      <div class="nickname-section">
+        <input type="text" id="nickname" data-i18n="nickname_placeholder" placeholder="Enter your nickname" maxlength="20">
       </div>
 
-      <div class="card">
-        <h2 data-i18n="join_room">Join Room</h2>
-        <p class="card-desc" data-i18n="join_room_desc">Enter the 6-character room code from your friend.</p>
-        <div class="join-row">
-          <input type="text" id="join-code" class="code-input" data-i18n="join_code_placeholder" placeholder="Enter code (e.g. ABC123)" maxlength="6">
-          <button type="button" class="btn btn-primary" id="join-btn" data-i18n="join_btn">Join</button>
+      <!-- Create / Join -->
+      <div class="lobby-grid">
+        <div class="card">
+          <h2 data-i18n="create_room">Create Room</h2>
+          <p class="card-desc" data-i18n="create_room_desc">Start a new game and invite your friend with a room code.</p>
+          <button type="button" class="btn btn-primary btn-block" id="create-btn" data-i18n="create_room">Create Room</button>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="join_room">Join Room</h2>
+          <p class="card-desc" data-i18n="join_room_desc">Enter the 6-character room code from your friend.</p>
+          <div class="join-row">
+            <input type="text" id="join-code" class="code-input" data-i18n="join_code_placeholder" placeholder="Enter code (e.g. ABC123)" maxlength="6">
+            <button type="button" class="btn btn-primary" id="join-btn" data-i18n="join_btn">Join</button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Room List -->
-    <div class="room-list">
-      <h2 data-i18n="open_rooms">Open Rooms</h2>
-      <div id="room-list">
-        <p class="empty-msg" data-i18n="loading_rooms">Loading rooms...</p>
+      <!-- Room List -->
+      <div class="room-list">
+        <h2 data-i18n="open_rooms">Open Rooms</h2>
+        <div id="room-list">
+          <p class="empty-msg" data-i18n="loading_rooms">Loading rooms...</p>
+        </div>
       </div>
-    </div>
+    </section>
   </div>
 
   <!-- Room Creation Modal (hidden by default) -->
@@ -124,8 +127,8 @@
         <input type="text" id="modal-bet" data-i18n="bet_placeholder" placeholder="e.g. Loser buys coffee" maxlength="100">
       </div>
       <div class="flex gap-8 mt-16">
-        <button class="btn btn-primary" id="modal-create-btn" style="flex:1" data-i18n="create_game">Create Game</button>
-        <button class="btn btn-secondary" onclick="document.getElementById('create-modal').classList.add('hidden')" style="flex:1">Cancel</button>
+        <button type="button" class="btn btn-primary flex-1" id="modal-create-btn" data-i18n="create_game">Create Game</button>
+        <button type="button" class="btn btn-secondary flex-1" id="modal-cancel-btn" data-i18n="cancel">Cancel</button>
       </div>
     </div>
   </div>
@@ -139,7 +142,6 @@
     <p data-i18n="footer_note">A side project by Jayyo.</p>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/lang/en.js"></script>

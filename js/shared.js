@@ -183,14 +183,11 @@ function clearForbiddenMarkers() {
   document.querySelectorAll('.forbidden-marker').forEach(el => el.remove());
 }
 
-// Generate a random 6-char room code (shared between lobby and game)
+// Random 6-character room code without look-alike characters (no I, O, 0, 1)
 function generateCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return Array.from(bytes, b => chars[b % chars.length]).join('');
 }
 
 // Returns { count, coords } for the longest consecutive chain including (x, y) for given player

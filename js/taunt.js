@@ -265,20 +265,21 @@ const Taunt = (() => {
     return effectNames[Math.floor(Math.random() * effectNames.length)];
   }
 
-  // Send taunt via Supabase
+  // Send taunt via Supabase; resolves to { error }
   async function sendTaunt(roomId, sender, effectKey, message) {
-    if (!window.db) return;
-    await db.from('taunts').insert({
+    if (!db) return { error: new Error('offline') };
+    const { error } = await db.from('taunts').insert({
       room_id: roomId,
       sender: sender,
       message: message || effects[effectKey]?.name || '',
       taunt_type: effectKey
     });
+    return { error };
   }
 
   // Subscribe to incoming taunts
   function subscribeTaunts(roomId, myName, onTaunt) {
-    if (!window.db) return null;
+    if (!db) return null;
     return db
       .channel(`taunts-${roomId}`)
       .on('postgres_changes', {

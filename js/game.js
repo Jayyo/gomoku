@@ -1,664 +1,593 @@
-// Game page: online rooms (local play lives in local-game.js)
-let board = createEmptyBoard();
-let roomData = null;
-let myRole = null;
-let moveCount = 0;
-let gameOver = false;
-let moveSubscription = null;
-let roomSubscription = null;
-let tauntSubscription = null;
+// Game page. Offline games go to LocalGame (local-game.js); this file handles online rooms.
+// The moves table is the source of truth: whose turn it is follows from the number of moves,
+// and both players detect the end of the game from the same moves.
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
-
   const mode = params.get('mode');
   if (mode === 'local' || mode === 'ai') {
     LocalGame.start(params);
     return;
   }
-
-  // Online mode
-  const roomCode = params.get('room');
-  if (!roomCode) {
-    window.location.href = 'index.html';
-    return;
-  }
-
-  document.getElementById('leave-btn').addEventListener('click', leaveRoom);
-  myRole = localStorage.getItem('omok_player_role');
-  const boardEl = document.getElementById('board');
-  renderBoard(boardEl, handleCellClick, onHoverEnter, onHoverLeave);
-  await loadRoom(roomCode);
+  OnlineGame.start((params.get('room') || '').toUpperCase());
 });
 
-function onHoverEnter(cell, x, y) {
-  if (gameOver || board[y][x] || !roomData || roomData.current_turn !== myRole) return;
-  if (roomData.status !== 'playing') return;
+const OnlineGame = (() => {
+  let room = null;
+  let seat = null; // 'host', 'guest', or null when watching
+  let myRole = null;
+  let board = createEmptyBoard();
+  let moves = [];
+  let result = null; // { winner, reason } once the game is over
+  let pending = false;
+  let syncing = null;
+  let channels = [];
+  let rematchTaken = false;
 
-  // Renju forbidden check for hover
-  if (roomData.rules_type === 'renju' && myRole === 'black') {
-    if (Rules.forbiddenReason(board, x, y)) return;
-  }
-
-  const preview = document.createElement('div');
-  preview.className = `hover-preview ${myRole}`;
-  cell.appendChild(preview);
-}
-
-function onHoverLeave(cell) {
-  removeHoverPreview(cell);
-}
-
-async function loadRoom(code) {
-  if (!db) {
-    showToast('Database connection failed');
-    setTimeout(() => window.location.href = 'index.html', 1500);
-    return;
-  }
-
-  const { data: room, error } = await db
-    .from('rooms')
-    .select('*')
-    .eq('code', code)
-    .single();
-
-  if (error || !room) {
-    showToast(I18n.t('room_not_found'));
-    setTimeout(() => window.location.href = 'index.html', 1500);
-    return;
-  }
-
-  roomData = room;
-  updateGameInfo();
-
-  // Load existing moves
-  const { data: moves } = await db
-    .from('moves')
-    .select('*')
-    .eq('room_id', room.id)
-    .order('move_number', { ascending: true });
-
-  if (moves) {
-    moves.forEach(move => {
-      board[move.y][move.x] = move.player;
-      moveCount = Math.max(moveCount, move.move_number);
-      placeStoneVisual(move.x, move.y, move.player, move.move_number === moveCount);
+  // ---- setup ----
+  async function start(code) {
+    document.getElementById('leave-btn').addEventListener('click', leaveRoom);
+    document.addEventListener('langchange', updatePanel);
+    window.addEventListener('beforeunload', () => {
+      if (db) channels.forEach(ch => db.removeChannel(ch));
     });
-  }
+    renderBoard(document.getElementById('board'), handleCellClick, onHoverEnter, removeHoverPreview);
 
-  // Show waiting overlay if needed
-  if (room.status === 'waiting') {
-    showWaitingOverlay(room.code);
-  }
-
-  // Show rules badge
-  const rulesBadge = document.getElementById('rules-badge');
-  if (rulesBadge) {
-    rulesBadge.textContent = room.rules_type === 'renju' ? I18n.t('renju') : I18n.t('freestyle');
-    rulesBadge.className = `rules-badge ${room.rules_type || 'freestyle'}`;
-  }
-
-  // Show bet if exists
-  if (room.bet_text) {
-    const betDisplay = document.getElementById('bet-display');
-    const betContent = document.getElementById('bet-content');
-    if (betDisplay && betContent) {
-      betDisplay.classList.remove('hidden');
-      betContent.textContent = room.bet_text;
-    }
-  }
-
-  // Renju markers
-  if (room.rules_type === 'renju' && room.current_turn === 'black' && room.status === 'playing') {
-    showForbiddenMarkers(board);
-  }
-
-  subscribeToGame(room.id, room.code);
-  setupTaunts(room.id);
-}
-
-function subscribeToGame(roomId, roomCode) {
-  moveSubscription = db
-    .channel(`moves-${roomId}`)
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'moves',
-      filter: `room_id=eq.${roomId}`
-    }, (payload) => {
-      const move = payload.new;
-      if (board[move.y][move.x]) return;
-
-      board[move.y][move.x] = move.player;
-      moveCount = Math.max(moveCount, move.move_number);
-
-      document.querySelectorAll('.stone.last-move').forEach(el => el.classList.remove('last-move'));
-      placeStoneVisual(move.x, move.y, move.player, true);
-      Sound.playStone();
-
-      // Apply impact effects for incoming moves
-      applyImpactEffects(move.x, move.y, move.player, board);
-
-      const winCoords = Rules.winningLine(board, move.x, move.y, roomData.rules_type);
-      if (winCoords) {
-        gameOver = true;
-        drawWinLine(winCoords);
-        showWinModal(move.player);
-      }
-
-      // Update renju markers
-      if (roomData && roomData.rules_type === 'renju') {
-        clearForbiddenMarkers();
-        if (roomData.current_turn === 'black' && !gameOver) {
-          showForbiddenMarkers(board);
-        }
-      }
-    })
-    .subscribe();
-
-  roomSubscription = db
-    .channel(`room-${roomId}`)
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'rooms',
-      filter: `id=eq.${roomId}`
-    }, (payload) => {
-      roomData = payload.new;
-      updateGameInfo();
-
-      if (roomData.status === 'playing') {
-        hideWaitingOverlay();
-      }
-
-      // Check for rematch
-      if (roomData.rematch_code && gameOver) {
-        showRematchNotification(roomData.rematch_code);
-      }
-
-      // Update renju markers on turn change
-      if (roomData.rules_type === 'renju' && roomData.status === 'playing' && !gameOver) {
-        clearForbiddenMarkers();
-        if (roomData.current_turn === 'black') {
-          showForbiddenMarkers(board);
-        }
-      }
-    })
-    .subscribe();
-}
-
-function setupTaunts(roomId) {
-  const nickname = localStorage.getItem('omok_nickname') || '';
-
-  // Subscribe to incoming taunts
-  try {
-    tauntSubscription = Taunt.subscribeTaunts(roomId, nickname, (taunt) => {
-      Taunt.play(taunt.taunt_type, taunt.sender, taunt.message);
-    });
-  } catch (e) {
-    console.warn('Taunt subscription failed:', e);
-    tauntSubscription = null;
-  }
-}
-
-async function handleCellClick(x, y) {
-  if (isLocalMode) return; // Handled by local-game.js
-  if (gameOver || !roomData || roomData.status !== 'playing') return;
-  if (roomData.current_turn !== myRole) {
-    showToast(I18n.t('not_your_turn'));
-    return;
-  }
-  if (board[y][x]) return;
-
-  // Renju check
-  if (roomData.rules_type === 'renju' && myRole === 'black') {
-    const reason = Rules.forbiddenReason(board, x, y);
-    if (reason) {
-      showToast(forbiddenMessage(reason));
+    if (!ROOM_CODE_PATTERN.test(code)) {
+      showNotice('room_not_found', null);
       return;
     }
+    setIndicator(I18n.t('connecting'), '');
+    if (!(await Online.connect())) {
+      showNotice('online_unavailable_title', 'online_unavailable');
+      return;
+    }
+
+    const { data, error } = await db.from('rooms').select('*').eq('code', code).maybeSingle();
+    if (error || !data) {
+      showNotice('room_not_found', null);
+      return;
+    }
+    room = data;
+    seat = Seat.get(code);
+    myRole = seat ? roleOf(seat) : null;
+
+    subscribe();
+    await sync(false);
+    setupTaunts();
+    if (room.status === 'waiting') showWaitingOverlay();
+    if (room.bet_text) {
+      document.getElementById('bet-content').textContent = room.bet_text;
+      document.getElementById('bet-display').classList.remove('hidden');
+    }
   }
 
-  // Optimistic update
-  board[y][x] = myRole;
-  moveCount++;
-  document.querySelectorAll('.stone.last-move').forEach(el => el.classList.remove('last-move'));
-  placeStoneVisual(x, y, myRole, true);
-  Sound.playStone();
-
-  // Apply impact effects based on consecutive chain length
-  applyImpactEffects(x, y, myRole, board);
-
-  const winCoords = Rules.winningLine(board, x, y, roomData.rules_type);
-
-  const { error: moveError } = await db
-    .from('moves')
-    .insert({
-      room_id: roomData.id,
-      player: myRole,
-      x, y,
-      move_number: moveCount
-    });
-
-  if (moveError) {
-    board[y][x] = null;
-    moveCount--;
-    removeStoneVisual(x, y);
-    showToast(I18n.t('failed_place'));
-    return;
+  function roleOf(s) {
+    return s === 'host' ? room.host_role : Rules.opponent(room.host_role);
   }
 
-  const nextTurn = myRole === 'black' ? 'white' : 'black';
-  const updateData = { current_turn: nextTurn };
-
-  if (winCoords) {
-    updateData.status = 'finished';
-    updateData.winner = myRole;
-    gameOver = true;
-  } else if (moveCount >= BOARD_SIZE * BOARD_SIZE) {
-    updateData.status = 'finished';
-    gameOver = true;
+  function nameOf(role) {
+    return role === room.host_role ? room.host_name : room.guest_name;
   }
 
-  const { error: roomUpdateError } = await db
-    .from('rooms')
-    .update(updateData)
-    .eq('id', roomData.id);
-
-  if (roomUpdateError) {
-    // Move was inserted but room update failed - revert local state
-    board[y][x] = null;
-    moveCount--;
-    gameOver = false;
-    removeStoneVisual(x, y);
-    showToast(I18n.t('failed_place'));
-    return;
+  function myName() {
+    return seat === 'host' ? room.host_name : room.guest_name;
   }
 
-  if (winCoords) {
-    drawWinLine(winCoords);
-    showWinModal(myRole);
-  } else if (moveCount >= BOARD_SIZE * BOARD_SIZE) {
-    showWinModal(null);
+  function turn() {
+    return moves.length % 2 === 0 ? 'black' : 'white';
   }
 
-  // Update renju markers
-  if (roomData.rules_type === 'renju' && !gameOver) {
+  function subscribe() {
+    channels.push(db
+      .channel(`moves-${room.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'moves', filter: `room_id=eq.${room.id}` },
+        payload => applyMove(payload.new, true))
+      .subscribe());
+    channels.push(db
+      .channel(`room-${room.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` },
+        payload => onRoomUpdate(payload.new))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` },
+        () => { if (seat !== 'host') showNotice('room_closed', null); })
+      .subscribe());
+  }
+
+  // Reload all moves from the server (start-up, missed realtime events, failed inserts).
+  // `live` is false on page load, so a finished game doesn't replay its sounds.
+  function sync(live = true) {
+    if (!syncing) {
+      syncing = (async () => {
+        const { data, error } = await db
+          .from('moves')
+          .select('x, y, player, move_number')
+          .eq('room_id', room.id)
+          .order('move_number', { ascending: true });
+        if (error) {
+          showToast(I18n.t('sync_failed'));
+          return;
+        }
+        board = createEmptyBoard();
+        moves = [];
+        renderBoard(document.getElementById('board'), handleCellClick, onHoverEnter, removeHoverPreview);
+        clearWinLine();
+        for (const m of data) {
+          if (m.move_number !== moves.length + 1) break;
+          board[m.y][m.x] = m.player;
+          moves.push(m);
+          placeStoneVisual(m.x, m.y, m.player, m.move_number === data.length);
+        }
+        const last = moves[moves.length - 1];
+        const line = last && Rules.winningLine(board, last.x, last.y, room.rules_type);
+        if (line && !result) finish(last.player, line, 'five', live);
+        else if (moves.length === BOARD_SIZE * BOARD_SIZE && !result) finish(null, null, 'draw', live);
+        else if (room.status === 'finished' && !result) finish(room.winner, null, room.winner ? 'forfeit' : 'draw', live);
+        updatePanel();
+      })().finally(() => { syncing = null; });
+    }
+    return syncing;
+  }
+
+  // ---- moves ----
+  function applyMove(m, animate) {
+    if (m.move_number <= moves.length) return;
+    if (m.move_number !== moves.length + 1 || board[m.y][m.x]) {
+      sync();
+      return;
+    }
+    board[m.y][m.x] = m.player;
+    moves.push({ x: m.x, y: m.y, player: m.player, move_number: m.move_number });
+
+    const ghost = document.querySelector('.stone.pending');
+    if (ghost) ghost.remove();
+    document.querySelectorAll('.stone.last-move').forEach(el => el.classList.remove('last-move'));
+    placeStoneVisual(m.x, m.y, m.player, true);
+    if (animate) {
+      Sound.playStone();
+      applyImpactEffects(m.x, m.y, m.player, board);
+    }
+
+    const line = Rules.winningLine(board, m.x, m.y, room.rules_type);
+    if (line) finish(m.player, line, 'five', true);
+    else if (moves.length === BOARD_SIZE * BOARD_SIZE) finish(null, null, 'draw', true);
+    else updatePanel();
+  }
+
+  async function handleCellClick(x, y) {
+    if (pending || result || !room || room.status !== 'playing' || !myRole) return;
+    if (turn() !== myRole) {
+      showToast(I18n.t('not_your_turn'));
+      return;
+    }
+    if (board[y][x]) return;
+    if (room.rules_type === 'renju' && myRole === 'black') {
+      const reason = Rules.forbiddenReason(board, x, y);
+      if (reason) {
+        showToast(forbiddenMessage(reason));
+        return;
+      }
+    }
+
+    // One move at a time; the stone shows faded until the server accepts it
+    pending = true;
+    const cell = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+    removeHoverPreview(cell);
+    const ghost = document.createElement('div');
+    ghost.className = `stone ${myRole} pending`;
+    cell.appendChild(ghost);
+
+    const move = { room_id: room.id, player: myRole, x, y, move_number: moves.length + 1 };
+    const { error } = await db.from('moves').insert(move);
+    pending = false;
+    if (error) {
+      ghost.remove();
+      console.error(error);
+      showToast(I18n.t('failed_place'));
+      sync();
+      return;
+    }
+    applyMove(move, true);
+  }
+
+  function onHoverEnter(cell, x, y) {
+    if (pending || result || !room || room.status !== 'playing' || turn() !== myRole || board[y][x]) return;
+    if (room.rules_type === 'renju' && myRole === 'black' && cell.querySelector('.forbidden-marker')) return;
+    showHoverPreview(cell, x, y, board, myRole, true);
+  }
+
+  // ---- room changes ----
+  function onRoomUpdate(next) {
+    const before = room;
+    room = next;
+    if (before.status === 'waiting' && room.status === 'playing') {
+      hideWaitingOverlay();
+      Sound.playStone();
+    }
+    if (room.status === 'finished' && !result) {
+      // Finished without a five on our board: the other player left, or we missed a move
+      sync().then(() => {
+        if (!result) finish(room.winner, null, room.winner ? 'forfeit' : 'draw', true);
+      });
+    }
+    if (room.rematch_code && !before.rematch_code && result && !rematchTaken) showRematchOffer(room.rematch_code);
+    updatePanel();
+  }
+
+  async function recordResult(winner) {
+    if (room.status !== 'playing') return;
+    // Either player may record it; the first update wins, later ones match no row
+    const { error } = await db
+      .from('rooms')
+      .update({ status: 'finished', winner })
+      .eq('id', room.id)
+      .eq('status', 'playing');
+    if (error) console.error(error);
+  }
+
+  function finish(winner, line, reason, live) {
+    result = { winner, reason };
     clearForbiddenMarkers();
-    if (nextTurn === 'black') {
+    if (line) drawWinLine(line);
+    updatePanel();
+    if (reason !== 'forfeit' && myRole) recordResult(winner);
+    if (live) setTimeout(() => showResultModal(true), line ? 700 : 0);
+    else showResultModal(false);
+  }
+
+  // ---- panel ----
+  function setIndicator(text, cls) {
+    const el = document.getElementById('turn-indicator');
+    el.textContent = text;
+    el.className = `turn-indicator ${cls}`;
+  }
+
+  function updatePanel() {
+    if (!room) return;
+    const badge = document.getElementById('rules-badge');
+    badge.textContent = I18n.t(room.rules_type === 'renju' ? 'renju' : 'freestyle');
+    badge.className = `rules-badge ${room.rules_type}`;
+
+    for (const role of ['black', 'white']) {
+      const name = nameOf(role) || I18n.t('waiting');
+      document.getElementById(`${role}-name`).textContent = name + (role === myRole ? ` ${I18n.t('you_suffix')}` : '');
+      document.getElementById(`${role}-info`).classList.toggle('active', !result && room.status === 'playing' && turn() === role);
+    }
+
+    if (result) {
+      setIndicator(resultText(), '');
+    } else if (room.status === 'waiting') {
+      setIndicator(I18n.t('waiting_title'), '');
+    } else if (!myRole) {
+      setIndicator(I18n.t(turn() === 'black' ? 'black_to_move' : 'white_to_move'), `${turn()}-turn`);
+    } else {
+      const mine = turn() === myRole;
+      setIndicator(I18n.t(mine ? 'your_turn' : 'opponent_turn'), mine ? 'my-turn' : 'opponent-turn');
+    }
+
+    clearForbiddenMarkers();
+    if (!result && room.status === 'playing' && room.rules_type === 'renju' && turn() === 'black' && myRole === 'black') {
       showForbiddenMarkers(board);
     }
   }
-}
 
-function updateGameInfo() {
-  if (!roomData) return;
-
-  const nickname = localStorage.getItem('omok_nickname') || 'You';
-  const hostName = roomData.host_name || 'Host';
-  const guestName = roomData.guest_name || I18n.t('waiting');
-
-  const blackName = document.getElementById('black-name');
-  const whiteName = document.getElementById('white-name');
-  const blackInfo = document.getElementById('black-info');
-  const whiteInfo = document.getElementById('white-info');
-  const turnIndicator = document.getElementById('turn-indicator');
-
-  if (blackName) blackName.textContent = hostName + (myRole === 'black' ? ' ' + I18n.t('you_suffix') : '');
-  if (whiteName) whiteName.textContent = guestName + (myRole === 'white' ? ' ' + I18n.t('you_suffix') : '');
-
-  if (blackInfo) blackInfo.classList.toggle('active', roomData.current_turn === 'black' && !gameOver);
-  if (whiteInfo) whiteInfo.classList.toggle('active', roomData.current_turn === 'white' && !gameOver);
-
-  if (turnIndicator && roomData.status === 'playing' && !gameOver) {
-    const isMyTurn = roomData.current_turn === myRole;
-    turnIndicator.className = `turn-indicator ${isMyTurn ? 'my-turn' : 'opponent-turn'}`;
-    turnIndicator.textContent = isMyTurn ? I18n.t('your_turn') : I18n.t('opponent_turn');
-  }
-}
-
-function showWaitingOverlay(code) {
-  let overlay = document.getElementById('waiting-overlay');
-  if (overlay) {
-    overlay.classList.remove('hidden');
-    return;
+  function resultText() {
+    if (!result.winner) return I18n.t('draw');
+    if (!myRole) return I18n.t(result.winner === 'black' ? 'black_wins' : 'white_wins');
+    return I18n.t(result.winner === myRole ? 'victory' : 'defeat');
   }
 
-  overlay = document.createElement('div');
-  overlay.id = 'waiting-overlay';
-  overlay.className = 'waiting-overlay';
-  overlay.innerHTML = `
-    <div class="waiting-box">
-      <h2 data-i18n="waiting_title">${I18n.t('waiting_title')}</h2>
-      <div class="spinner"></div>
-      <p data-i18n="share_code">${I18n.t('share_code')}</p>
-      <div class="room-code">${code}</div>
-      <button class="copy-btn" onclick="copyCode('${code}')" data-i18n="copy_code">${I18n.t('copy_code')}</button>
-      <div class="mt-16">
-        <button class="btn btn-secondary btn-small" onclick="leaveRoom()" data-i18n="leave_room">${I18n.t('leave_room')}</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-}
-
-function hideWaitingOverlay() {
-  const overlay = document.getElementById('waiting-overlay');
-  if (overlay) overlay.classList.add('hidden');
-}
-
-function showWinModal(winner) {
-  const nickname = localStorage.getItem('omok_nickname') || 'You';
-  let title, result, modalClass, titleClass, isWinner;
-
-  if (!winner) {
-    title = I18n.t('draw');
-    result = I18n.t('board_full');
-    modalClass = '';
-    titleClass = '';
-    isWinner = false;
-  } else if (winner === myRole) {
-    title = I18n.t('victory');
-    result = I18n.t('congratulations');
-    modalClass = 'victory-modal';
-    titleClass = 'victory-text';
-    isWinner = true;
-    Sound.playWin();
-    showConfetti();
-  } else {
-    title = I18n.t('defeat');
-    result = I18n.t('better_luck');
-    modalClass = 'defeat-modal';
-    titleClass = 'defeat-text';
-    isWinner = false;
-    Sound.playLose();
+  // ---- overlays ----
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
   }
 
-  // Build bet display
-  let betHtml = '';
-  if (roomData && roomData.bet_text && winner) {
-    if (winner === myRole) {
-      betHtml = `
-        <div class="you-owe-display">
-          <div class="owe-label">${I18n.t('you_owe')}</div>
-          <div class="owe-content">${escapeHtml(roomData.bet_text)}</div>
-        </div>`;
-    } else {
-      betHtml = `
-        <div class="you-owe-display">
-          <div class="owe-label">${I18n.t('you_owe')}</div>
-          <div class="owe-content">${escapeHtml(roomData.bet_text)}</div>
-        </div>`;
+  function button(label, className, onClick) {
+    const node = el('button', className, label);
+    node.type = 'button';
+    node.addEventListener('click', onClick);
+    return node;
+  }
+
+  function showNotice(titleKey, bodyKey) {
+    document.querySelectorAll('.waiting-overlay').forEach(node => node.remove());
+    setIndicator('', '');
+    const overlay = el('div', 'waiting-overlay');
+    const box = el('div', 'waiting-box');
+    box.setAttribute('role', 'alertdialog');
+    box.append(el('h2', '', I18n.t(titleKey)));
+    if (bodyKey) box.append(el('p', 'notice-text', I18n.t(bodyKey)));
+    const actions = el('div', 'modal-actions mt-16');
+    actions.append(
+      button(I18n.t('vs_computer'), 'btn btn-primary', () => { window.location.href = 'game.html?mode=ai&level=normal&color=black&rules=freestyle'; }),
+      button(I18n.t('back_to_lobby'), 'btn btn-secondary', () => { window.location.href = 'index.html'; })
+    );
+    box.append(actions);
+    overlay.append(box);
+    document.body.append(overlay);
+  }
+
+  function showWaitingOverlay() {
+    if (document.getElementById('waiting-overlay')) return;
+    const overlay = el('div', 'waiting-overlay');
+    overlay.id = 'waiting-overlay';
+    const box = el('div', 'waiting-box');
+    box.append(el('h2', '', I18n.t('waiting_title')), el('div', 'spinner'));
+
+    if (seat === 'host') {
+      const invite = new URL(`index.html?join=${room.code}`, window.location.href).href;
+      box.append(
+        el('p', '', I18n.t('share_code')),
+        el('div', 'room-code', room.code),
+        button(I18n.t('copy_code'), 'copy-btn', () => copy(room.code)),
+        button(I18n.t('copy_link'), 'copy-btn', () => copy(invite))
+      );
     }
+    const leave = el('div', 'mt-16');
+    leave.append(button(I18n.t('leave_room'), 'btn btn-secondary btn-small', leaveRoom));
+    box.append(leave);
+    overlay.append(box);
+    document.body.append(overlay);
   }
 
-  // Taunt panel for winner
-  let tauntHtml = '';
-  if (isWinner) {
-    const effects = Taunt.getEffectList();
-    const tauntBtns = effects.map(e =>
-      `<button class="taunt-btn" onclick="sendTauntFromModal('${e.key}')">${e.name}</button>`
-    ).join('');
-    tauntHtml = `
-      <div class="taunt-panel" style="border:none;padding-top:12px;">
-        <h4 style="color:var(--accent);font-family:var(--font-heading);">${I18n.t('taunt_title')}</h4>
-        <div class="taunt-grid">${tauntBtns}</div>
-      </div>`;
+  function hideWaitingOverlay() {
+    const overlay = document.getElementById('waiting-overlay');
+    if (overlay) overlay.remove();
   }
 
-  // Enshrine button for winner
-  let enshrineHtml = '';
-  if (isWinner) {
-    enshrineHtml = `
-      <div class="enshrine-section">
-        <input type="text" id="enshrine-msg" placeholder="${I18n.t('enshrine_message')}" maxlength="100">
-        <button class="btn btn-primary btn-small" onclick="enshrineVictory()" style="width:100%">${I18n.t('enshrine_submit')}</button>
-      </div>`;
+  function copy(text) {
+    navigator.clipboard.writeText(text)
+      .then(() => showToast(I18n.t('copied')))
+      .catch(() => showToast(I18n.t('copy_failed')));
   }
 
-  // Defeat actions
-  let actionHtml = '';
-  if (isWinner) {
-    actionHtml = `
-      <div class="modal-actions">
-        <button class="btn btn-primary btn-glow" onclick="requestRematch()">${I18n.t('rematch')}</button>
-        <button class="btn btn-secondary" onclick="window.location.href='index.html'">${I18n.t('back_to_lobby')}</button>
-      </div>`;
-  } else if (winner) {
-    actionHtml = `
-      <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="window.location.href='index.html'" id="defeat-accept-btn" disabled>${I18n.t('accept_defeat')}</button>
-        <button class="btn btn-danger" onclick="window.location.href='index.html'" id="defeat-rage-btn" disabled>${I18n.t('rage_quit')}</button>
-      </div>
-      <span class="defeat-countdown" id="defeat-countdown">5...</span>`;
-  } else {
-    actionHtml = `
-      <div class="modal-actions">
-        <button class="btn btn-primary" onclick="requestRematch()">${I18n.t('rematch')}</button>
-        <button class="btn btn-secondary" onclick="window.location.href='index.html'">${I18n.t('back_to_lobby')}</button>
-      </div>`;
-  }
+  function showResultModal(live) {
+    if (document.getElementById('result-modal')) return;
+    const { winner, reason } = result;
+    const iWon = myRole && winner === myRole;
+    const iLost = myRole && winner && winner !== myRole;
 
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal ${modalClass}">
-      <h2 class="${titleClass}">${title}</h2>
-      <p class="result">${result}</p>
-      ${betHtml}
-      ${tauntHtml}
-      ${enshrineHtml}
-      ${actionHtml}
-    </div>
-  `;
-  document.body.appendChild(overlay);
+    const overlay = el('div', 'modal-overlay');
+    overlay.id = 'result-modal';
+    const modal = el('div', `modal ${iWon ? 'victory-modal' : iLost ? 'defeat-modal' : ''}`);
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.append(el('h2', iWon ? 'victory-text' : iLost ? 'defeat-text' : '', resultText()));
 
-  // 5-second forced wait countdown for the loser
-  if (winner && winner !== myRole) {
-    let countdown = 5;
-    const countdownEl = document.getElementById('defeat-countdown');
-    const acceptBtn = document.getElementById('defeat-accept-btn');
-    const rageBtn = document.getElementById('defeat-rage-btn');
+    let detail = I18n.t('moves_played').replace('{n}', moves.length);
+    if (!winner) detail = I18n.t('board_full');
+    else if (reason === 'forfeit') detail = I18n.t(iWon ? 'opponent_left' : 'forfeited');
+    else if (iWon) detail = I18n.t('congratulations');
+    else if (iLost) detail = I18n.t('better_luck');
+    modal.append(el('p', 'result', detail));
 
-    const countdownInterval = setInterval(() => {
-      countdown--;
-      if (countdownEl) {
-        if (countdown > 0) {
-          countdownEl.textContent = `${countdown}...`;
-        } else {
-          countdownEl.remove();
-          if (acceptBtn) {
-            acceptBtn.disabled = false;
-          }
-          if (rageBtn) {
-            rageBtn.disabled = false;
-          }
-          clearInterval(countdownInterval);
+    // The bet: the loser owes it, the winner gets to see that
+    if (room.bet_text && (iWon || iLost)) {
+      const owe = el('div', 'you-owe-display');
+      owe.append(el('div', 'owe-label', I18n.t(iWon ? 'they_owe_you' : 'you_owe')), el('div', 'owe-content', room.bet_text));
+      modal.append(owe);
+    }
+
+    if (iWon) {
+      const taunts = el('div', 'taunt-panel modal-taunts');
+      taunts.append(el('h4', '', I18n.t('taunt_title')));
+      const grid = el('div', 'taunt-grid');
+      Taunt.getEffectList().forEach(e => grid.append(button(e.name, 'taunt-btn', () => sendTaunt(e.key))));
+      taunts.append(grid);
+      modal.append(taunts);
+
+      const enshrine = el('div', 'enshrine-section');
+      const input = el('input');
+      input.type = 'text';
+      input.maxLength = 100;
+      input.placeholder = I18n.t('enshrine_message');
+      const submit = button(I18n.t('enshrine_submit'), 'btn btn-primary btn-small btn-block', () => enshrineVictory(input, submit));
+      enshrine.append(input, submit);
+      modal.append(enshrine);
+      showSideTaunts();
+      if (live) {
+        Sound.playWin();
+        showConfetti();
+      }
+    } else if (iLost && live) {
+      Sound.playLose();
+    }
+
+    const actions = el('div', 'modal-actions');
+    if (iLost) {
+      // Losers get a few seconds to take in the result before they can leave
+      const accept = button(I18n.t('accept_defeat'), 'btn btn-secondary', () => { window.location.href = 'index.html'; });
+      const rage = button(I18n.t('rage_quit'), 'btn btn-danger', () => { window.location.href = 'index.html'; });
+      accept.disabled = true;
+      rage.disabled = true;
+      const countdown = el('span', 'defeat-countdown', '5...');
+      actions.append(accept, rage);
+      modal.append(actions, countdown);
+      let left = 5;
+      const timer = setInterval(() => {
+        left--;
+        if (left > 0) {
+          countdown.textContent = `${left}...`;
+          return;
         }
-      } else {
-        clearInterval(countdownInterval);
-      }
-    }, 1000);
+        clearInterval(timer);
+        countdown.remove();
+        accept.disabled = false;
+        rage.disabled = false;
+      }, 1000);
+    } else {
+      if (myRole) actions.append(button(I18n.t('rematch'), 'btn btn-primary btn-glow', requestRematch));
+      actions.append(button(I18n.t('view_board'), 'btn btn-secondary', () => overlay.remove()));
+      actions.append(button(I18n.t('back_to_lobby'), 'btn btn-secondary', () => { window.location.href = 'index.html'; }));
+      modal.append(actions);
+    }
+
+    overlay.append(modal);
+    document.body.append(overlay);
   }
 
-  // Also show taunt panel in sidebar for winner
-  if (isWinner) {
-    const sidePanel = document.getElementById('taunt-panel');
-    if (sidePanel) {
-      sidePanel.classList.remove('hidden');
-      const grid = document.getElementById('taunt-grid');
-      if (grid) {
-        const effects = Taunt.getEffectList();
-        grid.innerHTML = effects.map(e =>
-          `<button class="taunt-btn" onclick="sendTaunt('${e.key}')">${e.name}</button>`
-        ).join('');
-      }
-
-      // Custom taunt
-      const sendBtn = document.getElementById('taunt-send-btn');
-      if (sendBtn) {
-        sendBtn.onclick = () => {
-          const input = document.getElementById('taunt-custom-input');
-          if (input && input.value.trim()) {
-            const effectKey = Taunt.getRandomEffect();
-            sendTaunt(effectKey, input.value.trim());
-            input.value = '';
-          }
-        };
-      }
+  // ---- taunts ----
+  function setupTaunts() {
+    try {
+      const channel = Taunt.subscribeTaunts(room.id, myName() || '', t => Taunt.play(t.taunt_type, t.sender, t.message));
+      if (channel) channels.push(channel);
+    } catch (e) {
+      console.warn('Taunt subscription failed:', e);
     }
   }
-}
 
-// Taunt sending
-window.sendTaunt = async function(effectKey, customMsg) {
-  if (!roomData) return;
-  const nickname = localStorage.getItem('omok_nickname') || '';
-  await Taunt.sendTaunt(roomData.id, nickname, effectKey, customMsg);
-  showToast('Taunt sent!');
-};
-
-window.sendTauntFromModal = function(effectKey) {
-  sendTaunt(effectKey);
-};
-
-// Enshrine victory
-window.enshrineVictory = async function() {
-  if (!roomData) return;
-  const nickname = localStorage.getItem('omok_nickname') || '';
-  const msgInput = document.getElementById('enshrine-msg');
-  const message = msgInput ? msgInput.value.trim() : '';
-
-  // Get all moves for replay
-  const { data: moves } = await db
-    .from('moves')
-    .select('x, y, player, move_number')
-    .eq('room_id', roomData.id)
-    .order('move_number', { ascending: true });
-
-  // Generate token
-  const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-
-  const loserName = myRole === 'black' ? roomData.guest_name : roomData.host_name;
-
-  const { data: entry, error } = await db
-    .from('hall_of_fame')
-    .insert({
-      room_id: roomData.id,
-      winner_name: nickname,
-      loser_name: loserName || 'Unknown',
-      winner_role: myRole,
-      move_count: moveCount,
-      rules_type: roomData.rules_type || 'freestyle',
-      bet_text: roomData.bet_text,
-      replay_data: moves || [],
-      message: message,
-      winner_token: token
-    })
-    .select()
-    .single();
-
-  if (error) {
-    showToast('Failed to enshrine');
-    return;
+  function showSideTaunts() {
+    const panel = document.getElementById('taunt-panel');
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    const grid = document.getElementById('taunt-grid');
+    grid.replaceChildren(...Taunt.getEffectList().map(e => button(e.name, 'taunt-btn', () => sendTaunt(e.key))));
+    const input = document.getElementById('taunt-custom-input');
+    document.getElementById('taunt-send-btn').onclick = () => {
+      const text = input.value.trim();
+      if (!text) return;
+      sendTaunt(Taunt.getRandomEffect(), text);
+      input.value = '';
+    };
   }
 
-  // Store token locally for delete capability
-  const storedTokens = JSON.parse(localStorage.getItem('omok_hall_tokens') || '{}');
-  storedTokens[entry.id] = token;
-  localStorage.setItem('omok_hall_tokens', JSON.stringify(storedTokens));
-
-  showToast(I18n.t('enshrine') + '!');
-
-  // Disable button
-  const btn = document.querySelector('.enshrine-section .btn');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = '✓';
-  }
-};
-
-// Rematch
-window.requestRematch = async function() {
-  if (!roomData) return;
-  const nickname = localStorage.getItem('omok_nickname') || '';
-
-  // Create new room with swapped roles
-  const newCode = generateCode();
-  const newHostRole = myRole === 'black' ? 'white' : 'black';
-
-  const { data, error } = await db
-    .from('rooms')
-    .insert({
-      code: newCode,
-      host_name: nickname,
-      host_role: newHostRole,
-      status: 'waiting',
-      rules_type: roomData.rules_type,
-      bet_text: roomData.bet_text
-    })
-    .select()
-    .single();
-
-  if (error) {
-    showToast('Failed to create rematch');
-    return;
+  async function sendTaunt(effectKey, message) {
+    const { error } = await Taunt.sendTaunt(room.id, myName(), effectKey, message);
+    showToast(I18n.t(error ? 'taunt_failed' : 'taunt_sent'));
   }
 
-  // Save rematch code to old room
-  await db
-    .from('rooms')
-    .update({ rematch_code: newCode })
-    .eq('id', roomData.id);
-
-  // Navigate
-  localStorage.setItem('omok_player_role', newHostRole);
-  window.location.href = `game.html?room=${newCode}`;
-};
-
-function showRematchNotification(rematchCode) {
-  // Only show for the loser / non-initiator
-  if (document.getElementById('rematch-notification')) return;
-
-  const notif = document.createElement('div');
-  notif.id = 'rematch-notification';
-  notif.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:250;';
-  notif.innerHTML = `
-    <div class="card" style="text-align:center;border-color:var(--accent);box-shadow:var(--glow-cyan);">
-      <p style="margin-bottom:12px;font-weight:600;">${I18n.t('rematch_offer')}</p>
-      <button class="btn btn-primary btn-glow" onclick="acceptRematch('${rematchCode}')">${I18n.t('rematch_accept')}</button>
-    </div>
-  `;
-  document.body.appendChild(notif);
-}
-
-window.acceptRematch = function(code) {
-  localStorage.setItem('omok_player_role', 'white');
-  window.location.href = `game.html?room=${code}`;
-};
-
-function copyCode(code) {
-  navigator.clipboard.writeText(code).then(() => {
-    showToast(I18n.t('code_copied'));
-  }).catch(() => {
-    showToast(I18n.t('copy_failed'));
-  });
-}
-
-async function leaveRoom() {
-  if (roomData && roomData.id && !isLocalMode && db) {
-    await db.from('rooms').delete().eq('id', roomData.id);
+  // ---- hall of fame ----
+  function randomToken() {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   }
-  window.location.href = 'index.html';
-}
 
-// Cleanup on page leave
-window.addEventListener('beforeunload', () => {
-  try {
-    if (moveSubscription) moveSubscription.unsubscribe();
-    if (roomSubscription) roomSubscription.unsubscribe();
-    if (tauntSubscription) tauntSubscription.unsubscribe();
-  } catch (e) {
-    // Ignore cleanup errors on page exit
+  async function enshrineVictory(input, submit) {
+    submit.disabled = true;
+    const token = randomToken();
+    const { data, error } = await db
+      .from('hall_of_fame')
+      .insert({
+        room_id: room.id,
+        winner_name: myName(),
+        loser_name: nameOf(Rules.opponent(myRole)),
+        winner_role: myRole,
+        move_count: moves.length,
+        rules_type: room.rules_type,
+        bet_text: room.bet_text,
+        replay_data: moves,
+        message: input.value.trim() || null,
+        winner_token: token,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error(error);
+      submit.disabled = false;
+      showToast(I18n.t(error.code === '23505' ? 'already_enshrined' : 'enshrine_failed'));
+      return;
+    }
+    try {
+      const tokens = JSON.parse(localStorage.getItem('omok_hall_tokens') || '{}');
+      tokens[data.id] = token;
+      localStorage.setItem('omok_hall_tokens', JSON.stringify(tokens));
+    } catch (e) {
+      // without the token the entry just can't be deleted from this browser later
+    }
+    submit.textContent = '✓';
+    showToast(I18n.t('enshrined'));
   }
-});
+
+  // ---- rematch / leaving ----
+  async function requestRematch() {
+    if (room.rematch_code) {
+      acceptRematch(room.rematch_code);
+      return;
+    }
+    rematchTaken = true;
+    // Colors swap in the rematch
+    let created = null;
+    for (let attempt = 0; attempt < 3 && !created; attempt++) {
+      const { data, error } = await db
+        .from('rooms')
+        .insert({
+          code: generateCode(),
+          host_name: myName(),
+          host_role: Rules.opponent(myRole),
+          rules_type: room.rules_type,
+          bet_text: room.bet_text,
+        })
+        .select('id, code')
+        .single();
+      if (!error) created = data;
+      else if (error.code !== '23505') break;
+    }
+    if (!created) {
+      rematchTaken = false;
+      showToast(I18n.t('rematch_failed'));
+      return;
+    }
+
+    const { data: linked } = await db
+      .from('rooms')
+      .update({ rematch_code: created.code })
+      .eq('id', room.id)
+      .is('rematch_code', null)
+      .select('rematch_code');
+    if (!linked || !linked.length) {
+      // The other player asked first: drop ours and join theirs
+      await db.from('rooms').delete().eq('id', created.id).eq('status', 'waiting');
+      const { data: latest } = await db.from('rooms').select('rematch_code').eq('id', room.id).maybeSingle();
+      if (latest && latest.rematch_code) acceptRematch(latest.rematch_code);
+      return;
+    }
+    Seat.set(created.code, 'host');
+    window.location.href = `game.html?room=${created.code}`;
+  }
+
+  function showRematchOffer(code) {
+    if (document.getElementById('rematch-notification')) return;
+    const box = el('div', 'card rematch-offer');
+    box.id = 'rematch-notification';
+    box.append(el('p', '', I18n.t('rematch_offer')), button(I18n.t('rematch_accept'), 'btn btn-primary btn-glow', () => acceptRematch(code)));
+    document.body.append(box);
+  }
+
+  async function acceptRematch(code) {
+    rematchTaken = true;
+    const { data, error } = await db
+      .from('rooms')
+      .update({ guest_name: myName(), status: 'playing', bet_agreed: !!room.bet_text })
+      .eq('code', code)
+      .eq('status', 'waiting')
+      .select('code');
+    if (error || !data || !data.length) {
+      rematchTaken = false;
+      showToast(I18n.t('rematch_failed'));
+      return;
+    }
+    Seat.set(code, 'guest');
+    window.location.href = `game.html?room=${code}`;
+  }
+
+  async function leaveRoom() {
+    if (db && room) {
+      if (room.status === 'waiting' && seat === 'host') {
+        await db.from('rooms').delete().eq('id', room.id).eq('status', 'waiting');
+      } else if (room.status === 'playing' && myRole && !result) {
+        if (!window.confirm(I18n.t('confirm_forfeit'))) return;
+        await db
+          .from('rooms')
+          .update({ status: 'finished', winner: Rules.opponent(myRole) })
+          .eq('id', room.id)
+          .eq('status', 'playing');
+      }
+    }
+    window.location.href = 'index.html';
+  }
+
+  return { start };
+})();

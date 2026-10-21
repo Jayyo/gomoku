@@ -1,183 +1,173 @@
-// Hall of Fame page
-(function() {
+// Hall of Fame page: games that winners chose to keep, with replays
+(function () {
+  const COLUMNS = 'id, winner_name, loser_name, winner_role, move_count, rules_type, bet_text, replay_data, message, created_at';
   let entries = [];
+  let state = 'loading';
 
   document.addEventListener('DOMContentLoaded', async () => {
-    if (!db) {
-      const listEl = document.getElementById('hall-list');
-      if (listEl) listEl.innerHTML = '<p class="empty-msg">Connecting to server...</p>';
+    document.addEventListener('langchange', render);
+    render();
+    if (!(await Online.connect())) {
+      state = 'offline';
+      render();
       return;
     }
-    await loadEntries();
-  });
-
-  async function loadEntries() {
-    const listEl = document.getElementById('hall-list');
-    if (!listEl) return;
-
     const { data, error } = await db
       .from('hall_of_fame')
-      .select('*')
+      .select(COLUMNS)
       .order('created_at', { ascending: false })
       .limit(50);
-
-    if (error) {
-      listEl.innerHTML = `<p class="empty-msg">${I18n.t('hall_no_entries')}</p>`;
-      return;
-    }
-
+    state = error ? 'error' : 'ready';
     entries = data || [];
-    renderEntries();
+    render();
+  });
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
   }
 
-  function renderEntries() {
-    const listEl = document.getElementById('hall-list');
-    if (!entries.length) {
-      listEl.innerHTML = `<p class="empty-msg">${I18n.t('hall_no_entries')}</p>`;
+  function storedTokens() {
+    try {
+      return JSON.parse(localStorage.getItem('omok_hall_tokens') || '{}');
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function render() {
+    const list = document.getElementById('hall-list');
+    const messages = {
+      loading: 'loading',
+      offline: 'online_unavailable',
+      error: 'hall_failed',
+    };
+    if (state !== 'ready' || !entries.length) {
+      list.replaceChildren(el('p', 'empty-msg', I18n.t(messages[state] || 'hall_no_entries')));
       return;
     }
 
-    // Get stored tokens for delete capability
-    const storedTokens = JSON.parse(localStorage.getItem('omok_hall_tokens') || '{}');
+    const tokens = storedTokens();
+    list.replaceChildren(...entries.map((entry) => {
+      const item = el('div', 'hall-entry');
+      const header = el('div', 'hall-header');
+      const players = el('div', 'hall-players');
+      players.append(
+        el('span', 'hall-winner-name', entry.winner_name),
+        el('span', 'hall-vs', 'vs'),
+        el('span', 'hall-loser-name', entry.loser_name)
+      );
+      const meta = el('div', 'hall-meta');
+      meta.append(
+        el('span', 'hall-tag', I18n.t(entry.rules_type === 'renju' ? 'renju' : 'freestyle')),
+        el('span', 'hall-tag', I18n.t('hall_moves').replace('{n}', entry.move_count || '?')),
+        el('span', 'hall-date', new Date(entry.created_at).toLocaleDateString(I18n.getLang()))
+      );
+      header.append(players, meta);
+      item.append(header);
 
-    listEl.innerHTML = entries.map((entry, idx) => {
-      const canDelete = storedTokens[entry.id];
-      const betHtml = entry.bet_text ? `<div class="hall-bet"><span class="label">${I18n.t('hall_bet')}:</span> ${escapeHtml(entry.bet_text)}</div>` : '';
-      const msgHtml = entry.message ? `<div class="hall-message">"${escapeHtml(entry.message)}"</div>` : '';
-      const rulesLabel = entry.rules_type === 'renju' ? I18n.t('renju') : I18n.t('freestyle');
-      const dateStr = new Date(entry.created_at).toLocaleDateString();
+      if (entry.bet_text) {
+        const bet = el('div', 'hall-bet');
+        bet.append(el('span', 'label', `${I18n.t('hall_bet')}: `), document.createTextNode(entry.bet_text));
+        item.append(bet);
+      }
+      if (entry.message) item.append(el('div', 'hall-message', `"${entry.message}"`));
 
-      return `
-        <div class="hall-entry" data-id="${entry.id}">
-          <div class="hall-header">
-            <div class="hall-players">
-              <span class="hall-winner-name">${escapeHtml(entry.winner_name)}</span>
-              <span class="hall-vs">vs</span>
-              <span class="hall-loser-name">${escapeHtml(entry.loser_name)}</span>
-            </div>
-            <div class="hall-meta">
-              <span class="hall-tag">${rulesLabel}</span>
-              <span class="hall-tag">${entry.move_count || '?'} ${I18n.t('hall_moves').toLowerCase()}</span>
-              <span class="hall-date">${dateStr}</span>
-            </div>
-          </div>
-          ${betHtml}
-          ${msgHtml}
-          <div class="hall-actions">
-            ${entry.replay_data ? `<button class="btn btn-secondary btn-small" onclick="window.hallReplay(${idx})">${I18n.t('hall_replay')}</button>` : ''}
-            ${canDelete ? `<button class="btn btn-danger btn-small" onclick="window.hallDelete('${entry.id}')">${I18n.t('hall_delete')}</button>` : ''}
-          </div>
-        </div>
-      `;
-    }).join('');
+      const actions = el('div', 'hall-actions');
+      if (Array.isArray(entry.replay_data) && entry.replay_data.length) {
+        const replay = el('button', 'btn btn-secondary btn-small', I18n.t('hall_replay'));
+        replay.type = 'button';
+        replay.addEventListener('click', () => showReplay(entry));
+        actions.append(replay);
+      }
+      if (tokens[entry.id]) {
+        const remove = el('button', 'btn btn-danger btn-small', I18n.t('hall_delete'));
+        remove.type = 'button';
+        remove.addEventListener('click', () => deleteEntry(entry.id));
+        actions.append(remove);
+      }
+      item.append(actions);
+      return item;
+    }));
   }
 
-  // Replay animation
-  window.hallReplay = function(idx) {
-    const entry = entries[idx];
-    if (!entry || !entry.replay_data) return;
+  function showReplay(entry) {
+    const moves = entry.replay_data.filter(m =>
+      Number.isInteger(m.x) && Number.isInteger(m.y) && (m.player === 'black' || m.player === 'white'));
 
-    const moves = typeof entry.replay_data === 'string' ? JSON.parse(entry.replay_data) : entry.replay_data;
-    if (!moves.length) return;
+    const overlay = el('div', 'modal-overlay');
+    const modal = el('div', 'modal replay-modal');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    const wrapper = el('div', 'replay-board-wrapper');
+    const boardEl = el('div', 'replay-board');
+    wrapper.append(boardEl);
+    const counter = el('div', 'replay-controls', `0 / ${moves.length}`);
+    const close = el('button', 'btn btn-secondary', I18n.t('close'));
+    close.type = 'button';
+    modal.append(el('h2', '', `${entry.winner_name} vs ${entry.loser_name}`), wrapper, counter, close);
+    overlay.append(modal);
+    document.body.append(overlay);
 
-    // Create replay modal
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.innerHTML = `
-      <div class="modal replay-modal">
-        <h2>${escapeHtml(entry.winner_name)} vs ${escapeHtml(entry.loser_name)}</h2>
-        <div class="replay-board-wrapper">
-          <div id="replay-board" class="replay-board"></div>
-        </div>
-        <div class="replay-controls">
-          <span id="replay-counter">0 / ${moves.length}</span>
-        </div>
-        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">
-          ${I18n.t('back_to_lobby')}
-        </button>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    // Render empty board
-    const replayBoard = document.getElementById('replay-board');
-    replayBoard.innerHTML = '';
-    for (let y = 0; y < 15; y++) {
-      for (let x = 0; x < 15; x++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
+    for (let y = 0; y < BOARD_SIZE; y++) {
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        const cell = el('div', 'cell');
         cell.dataset.x = x;
         cell.dataset.y = y;
         if (STAR_POINTS.some(([sx, sy]) => sx === x && sy === y)) {
           cell.classList.add('star-point');
-          const dot = document.createElement('div');
-          dot.className = 'dot';
-          cell.appendChild(dot);
+          cell.append(el('div', 'dot'));
         }
-        replayBoard.appendChild(cell);
+        boardEl.append(cell);
       }
     }
 
-    // Animate moves
     let i = 0;
-    const counter = document.getElementById('replay-counter');
-    const interval = setInterval(() => {
-      if (i >= moves.length || !document.getElementById('replay-board')) {
-        clearInterval(interval);
+    const timer = setInterval(() => {
+      if (i >= moves.length || !overlay.isConnected) {
+        clearInterval(timer);
         return;
       }
       const move = moves[i];
-      const cell = replayBoard.querySelector(`.cell[data-x="${move.x}"][data-y="${move.y}"]`);
+      const cell = boardEl.querySelector(`.cell[data-x="${move.x}"][data-y="${move.y}"]`);
       if (cell) {
         const dot = cell.querySelector('.dot');
         if (dot) dot.remove();
-        // Remove previous last-move
-        replayBoard.querySelectorAll('.stone.last-move').forEach(el => el.classList.remove('last-move'));
-        const stone = document.createElement('div');
-        stone.className = `stone ${move.player} last-move`;
+        boardEl.querySelectorAll('.stone.last-move').forEach(s => s.classList.remove('last-move'));
+        const stone = el('div', `stone ${move.player} last-move`);
         stone.style.animation = 'stone-drop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        cell.appendChild(stone);
+        cell.append(stone);
       }
       i++;
-      if (counter) counter.textContent = `${i} / ${moves.length}`;
+      counter.textContent = `${i} / ${moves.length}`;
     }, 500);
-  };
 
-  // Delete entry
-  window.hallDelete = async function(id) {
-    const storedTokens = JSON.parse(localStorage.getItem('omok_hall_tokens') || '{}');
-    const token = storedTokens[id];
-    if (!token) return;
+    close.addEventListener('click', () => {
+      clearInterval(timer);
+      overlay.remove();
+    });
+  }
 
-    // Verify token matches
-    const { data: entry } = await db
-      .from('hall_of_fame')
-      .select('winner_token')
-      .eq('id', id)
-      .single();
+  async function deleteEntry(id) {
+    const tokens = storedTokens();
+    if (!tokens[id] || !window.confirm(I18n.t('hall_confirm_delete'))) return;
 
-    if (!entry || entry.winner_token !== token) {
-      showToast('Unauthorized');
+    // The server checks the token; it can't be read back from the table
+    const { data, error } = await db.rpc('delete_hall_entry', { entry_id: id, token: tokens[id] });
+    if (error || !data) {
+      showToast(I18n.t('hall_delete_failed'));
       return;
     }
-
-    const { error } = await db
-      .from('hall_of_fame')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      showToast('Delete failed');
-      return;
+    delete tokens[id];
+    try {
+      localStorage.setItem('omok_hall_tokens', JSON.stringify(tokens));
+    } catch (e) {
+      // ignore
     }
-
-    // Remove token
-    delete storedTokens[id];
-    localStorage.setItem('omok_hall_tokens', JSON.stringify(storedTokens));
-
-    // Remove from UI
     entries = entries.filter(e => e.id !== id);
-    renderEntries();
-    showToast('Deleted');
-  };
+    render();
+    showToast(I18n.t('hall_deleted'));
+  }
 })();

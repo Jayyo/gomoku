@@ -500,6 +500,67 @@ select {
   font-family: var(--font-heading);
 }
 
+.online-status {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9em;
+  margin-bottom: 16px;
+}
+
+.online-status.checking {
+  color: var(--text-dim);
+  background: var(--surface);
+}
+
+.online-status.offline {
+  color: var(--warn);
+  background: rgba(255, 171, 64, 0.08);
+  border: 1px solid rgba(255, 171, 64, 0.25);
+}
+
+#online-section.is-offline .lobby-grid,
+#online-section.is-offline .nickname-section {
+  opacity: 0.45;
+}
+
+.flex-1 { flex: 1; }
+
+.bet-agree-title {
+  color: var(--accent);
+  font-family: var(--font-heading);
+  margin-bottom: 16px;
+}
+
+.notice-text {
+  color: var(--text-mid);
+  margin-top: 12px;
+}
+
+.waiting-box .copy-btn { margin: 4px; }
+
+.rematch-offer {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 250;
+  text-align: center;
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+}
+
+.rematch-offer p {
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.modal-taunts {
+  border-top: none;
+  padding-top: 12px;
+}
+
+.cell .stone.pending { opacity: 0.45; }
+
 .local-controls {
   display: flex;
   gap: 8px;
@@ -1106,6 +1167,8 @@ select {
   text-align: center;
   max-width: 440px;
   width: 90%;
+  max-height: 92vh;
+  overflow-y: auto;
   border: 1px solid var(--surface3);
   animation: modal-scale-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -1191,7 +1254,7 @@ select {
 
 /* Enshrine section */
 .enshrine-section {
-  margin-top: 16px;
+  margin: 16px 0 20px;
   padding-top: 16px;
   border-top: 1px solid var(--surface2);
 }
