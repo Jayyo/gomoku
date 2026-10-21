@@ -56,8 +56,7 @@ const LocalGame = (() => {
   }
 
   function redraw() {
-    const svg = document.getElementById('win-line-svg');
-    if (svg) svg.remove();
+    clearWinLine();
     renderBoard(document.getElementById('board'), onCellClick, onHoverEnter, removeHoverPreview);
     history.forEach((m, i) => placeStoneVisual(m.x, m.y, m.color, i === history.length - 1));
   }

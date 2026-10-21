@@ -61,43 +61,34 @@ function removeStoneVisual(x, y) {
   if (stone) stone.remove();
 }
 
-// Draw neon laser win line via SVG overlay
-function drawWinLine(coords) {
-  if (!coords || coords.length < 5) return;
+let winLineCoords = null;
 
-  // Sort coords to find endpoints
+// Neon line over the winning stones (SVG overlay on top of the board)
+function drawWinLine(coords) {
+  clearWinLine();
+  const boardEl = document.getElementById('board');
+  if (!boardEl || !coords || coords.length < 5) return;
+  winLineCoords = coords;
+
   const sorted = [...coords].sort((a, b) => a.x - b.x || a.y - b.y);
   const start = sorted[0];
   const end = sorted[sorted.length - 1];
 
-  const boardEl = document.getElementById('board');
-  if (!boardEl) return;
+  // clientWidth includes the padding, so take it out before dividing into cells
+  const size = boardEl.clientWidth;
+  const padding = parseFloat(getComputedStyle(boardEl).paddingLeft) || 0;
+  const cell = (size - padding * 2) / BOARD_SIZE;
+  const center = i => padding + i * cell + cell / 2;
 
-  const rect = boardEl.getBoundingClientRect();
-  const cellSize = rect.width / BOARD_SIZE;
-  const padding = parseFloat(getComputedStyle(boardEl).padding) || 16;
-
-  // Create SVG overlay
-  let svg = document.getElementById('win-line-svg');
-  if (!svg) {
-    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.id = 'win-line-svg';
-    svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;';
-    boardEl.parentElement.style.position = 'relative';
-    boardEl.parentElement.appendChild(svg);
-  }
-
-  const x1 = padding + start.x * cellSize + cellSize / 2;
-  const y1 = padding + start.y * cellSize + cellSize / 2;
-  const x2 = padding + end.x * cellSize + cellSize / 2;
-  const y2 = padding + end.y * cellSize + cellSize / 2;
-
-  // Scale to SVG viewBox
-  svg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
-
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.id = 'win-line-svg';
+  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;';
+  // userSpaceOnUse: a horizontal or vertical line has a zero-height bounding box,
+  // and a filter region based on it would hide the line completely
   svg.innerHTML = `
     <defs>
-      <filter id="glow">
+      <filter id="win-glow" filterUnits="userSpaceOnUse" x="0" y="0" width="${size}" height="${size}">
         <feGaussianBlur stdDeviation="4" result="blur"/>
         <feMerge>
           <feMergeNode in="blur"/>
@@ -106,19 +97,30 @@ function drawWinLine(coords) {
         </feMerge>
       </filter>
     </defs>
-    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
+    <line x1="${center(start.x)}" y1="${center(start.y)}" x2="${center(end.x)}" y2="${center(end.y)}"
       stroke="#22D3EE" stroke-width="4" stroke-linecap="round"
-      filter="url(#glow)" opacity="0.9">
+      filter="url(#win-glow)" opacity="0.9">
       <animate attributeName="stroke-width" values="4;8;4" dur="1.5s" repeatCount="indefinite"/>
     </line>
   `;
+  boardEl.parentElement.appendChild(svg);
 
-  // Also highlight winning stones
-  coords.forEach(({x, y}) => {
-    const cell = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"] .stone`);
-    if (cell) cell.classList.add('winning-stone');
+  coords.forEach(({ x, y }) => {
+    const stone = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"] .stone`);
+    if (stone) stone.classList.add('winning-stone');
   });
 }
+
+function clearWinLine() {
+  winLineCoords = null;
+  const svg = document.getElementById('win-line-svg');
+  if (svg) svg.remove();
+}
+
+// The board is sized in vw, so redraw the line when the window changes size
+window.addEventListener('resize', () => {
+  if (winLineCoords) drawWinLine(winLineCoords);
+});
 
 function showToast(msg) {
   const existing = document.querySelector('.toast');
