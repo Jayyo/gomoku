@@ -2,6 +2,8 @@
 
 Gomoku (오목) in the browser. Play the computer, pass the device back and forth, or invite a friend to an online room. Plain HTML, CSS and JavaScript with no build step.
 
+**Play in your browser: https://jayyo.github.io/gomoku/**
+
 ![Playing the computer under Renju rules. The ✕ marks a point Black can't play.](docs/game.png)
 
 ## What it does
@@ -37,6 +39,8 @@ Tests cover the rules and the computer player and need Node 18 or newer, nothing
 ```sh
 node --test
 ```
+
+Pushing to `master` runs the tests and publishes the site files to GitHub Pages ([`.github/workflows/pages.yml`](.github/workflows/pages.yml)). GitHub Pages can't send response headers, so the Content-Security-Policy is a `<meta>` tag in each page; `vercel.json` only adds the headers a meta tag can't express.
 
 ## Online play
 
@@ -76,7 +80,7 @@ Hard also skips moves that leave the opponent a VCF and looks one reply ahead. E
 
 ## 한국어
 
-브라우저에서 두는 오목입니다. 컴퓨터와 두거나, 한 기기에서 둘이 번갈아 두거나, 방 코드로 친구를 불러 온라인으로 둘 수 있습니다. 빌드 과정 없이 HTML, CSS, JavaScript로만 만들었습니다.
+브라우저에서 두는 오목입니다. 컴퓨터와 두거나, 한 기기에서 둘이 번갈아 두거나, 방 코드로 친구를 불러 온라인으로 둘 수 있습니다. 빌드 과정 없이 HTML, CSS, JavaScript로만 만들었습니다. 브라우저에서 바로 둘 수 있습니다: https://jayyo.github.io/gomoku/
 
 - 컴퓨터 상대는 쉬움, 보통, 어려움 세 단계이고 Web Worker에서 돌아가서 인터넷 없이도 됩니다.
 - 자유룰과 렌주룰을 지원합니다. 렌주룰에서는 흑의 금수(삼삼, 사사, 장목)를 국제렌주연맹(RIF) 정의대로 판정하고 판 위에 ✕로 표시합니다.
