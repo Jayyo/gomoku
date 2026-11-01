@@ -58,7 +58,7 @@ Every candidate point near the stones gets a score from the shapes it makes alon
 3. on Hard, also looks for forced wins that use threes (VCT);
 4. if the opponent threatens an open four or another double threat, only considers moves that stop it.
 
-Hard also skips moves that leave the opponent a VCF and looks one reply ahead. Easy skips the searches, sometimes ignores open threes and picks among its top few moves. In 120 self-play games against Normal (both colors, both rule sets), Hard won 73, lost 14 and drew 33. Normal won 39 of 40 games against Easy, with one draw. Under Renju the engine never plays a forbidden point as Black, and as White it doesn't waste moves blocking points Black isn't allowed to use.
+Hard also skips moves that leave the opponent a VCF, then runs an alpha-beta search over its ten best moves, going deeper in steps (up to six plies) until its 1.5 seconds per move run out. Easy skips the searches, sometimes ignores open threes and picks among its top few moves. In 120 self-play games against Normal from random four-stone openings (both colors, both rule sets), Hard won 106, lost 12 and drew 2. Against the previous Hard, which had no alpha-beta search, it won 70, lost 19 and drew 7 of 96 games set up the same way. Normal won 39 of 40 games against Easy, with one draw. Under Renju the engine never plays a forbidden point as Black, and as White it doesn't waste moves blocking points Black isn't allowed to use.
 
 ## Layout
 
@@ -75,7 +75,7 @@ Hard also skips moves that leave the opponent a VCF and looks one reply ahead. E
 ## Limitations
 
 - Renju is played with a free opening. Tournament opening rules (Soosõrv-8, Taraguchi and others) aren't implemented, and a forbidden point is simply not playable instead of losing the game.
-- The computer only searches forced sequences of fours and threes, plus one reply ahead. It has no deeper game-tree search, so an experienced player will find its weak spots.
+- The search looks at ten moves per position and six plies at most, with a simple shape count as its evaluation and no transposition table, so an experienced player will still find its weak spots.
 - Online rooms have no accounts, see above.
 
 ## 한국어
