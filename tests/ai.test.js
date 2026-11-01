@@ -137,3 +137,32 @@ test('returns null when the board is full', () => {
   const board = Rules.createBoard().map((row, y) => row.map((_, x) => ((x + (y % 2) * 2) % 4 < 2 ? 'black' : 'white')));
   assert.equal(AI.chooseMove(board, 'black', { rules: 'freestyle' }), null);
 });
+
+test('hard stops at the time limit and leaves the board as it was', () => {
+  const { board } = parse([
+    '...b...',
+    '..wbw..',
+    '.bwwb..',
+    '..b.w..',
+  ]);
+  const before = JSON.stringify(board);
+  for (const timeLimit of [1, 20, 150]) {
+    const started = Date.now();
+    const m = AI.chooseMove(board, 'black', { rules: 'freestyle', level: 'hard', random: seeded(3), timeLimit });
+    assert.ok(Date.now() - started < timeLimit + 200, `took too long at ${timeLimit} ms`);
+    assert.equal(board[m.y][m.x], null);
+    assert.equal(JSON.stringify(board), before);
+  }
+});
+
+test('hard stays legal under Renju after the search', () => {
+  const { board } = parse([
+    '..b....',
+    '..b....',
+    'bb.ww..',
+    '...w...',
+    '....w..',
+  ]);
+  const m = AI.chooseMove(board, 'black', { rules: 'renju', level: 'hard', random: seeded(5), timeLimit: 200 });
+  assert.ok(Rules.isLegal(board, m.x, m.y, 'black', 'renju'));
+});

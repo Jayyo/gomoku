@@ -6,6 +6,7 @@
 //   2. look for a forced win made only of fours (VCF)
 //   3. if the opponent threatens an open four / double threat next move, only consider moves that stop it
 //   4. otherwise score every nearby point by the shapes it makes for both sides
+//   5. hard only: run an alpha-beta search over the best of those points
 // Shapes along a line are classified from an 11-cell window and cached, so scoring a point is cheap.
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./rules.js'));
@@ -19,7 +20,7 @@
   const LEVELS = {
     easy: { vcfDepth: 0, vcfNodes: 0, ignoreThreat: 0.5, pickFrom: 5, checkOpponentVcf: false, lookahead: 0 },
     normal: { vcfDepth: 8, vcfNodes: 4000, ignoreThreat: 0, pickFrom: 1, checkOpponentVcf: false, lookahead: 0 },
-    hard: { vcfDepth: 14, vcfNodes: 20000, vctDepth: 4, vctNodes: 1500, ignoreThreat: 0, pickFrom: 1, checkOpponentVcf: true, lookahead: 8 },
+    hard: { vcfDepth: 14, vcfNodes: 20000, vctDepth: 4, vctNodes: 1500, ignoreThreat: 0, pickFrom: 1, checkOpponentVcf: true, lookahead: 8, searchDepth: 6, searchWidth: 10 },
   };
 
   // ---- line shapes ----
@@ -377,6 +378,92 @@
     return out;
   }
 
+  // ---- alpha-beta search, used by the hard level ----
+  const WIN_SCORE = 1e9;
+  const TIMED_OUT = Symbol('timed out');
+
+  // Shape totals over the points next to stones, from the view of the side to move.
+  // Shape scores are capped so one big threat doesn't drown out the rest of the board.
+  function evaluate(board, color, rules) {
+    const opp = Rules.opponent(color);
+    let mine = 0;
+    let theirs = 0;
+    for (const p of candidates(board, 1)) {
+      mine += Math.min(shapeScore(shapesAt(board, p.x, p.y, color, rules)), 2e4);
+      theirs += Math.min(shapeScore(shapesAt(board, p.x, p.y, opp, rules)), 2e4);
+    }
+    return mine * 1.1 - theirs;
+  }
+
+  function searchMoves(board, color, rules, width) {
+    const opp = Rules.opponent(color);
+    const moves = [];
+    for (const p of candidates(board, 2)) {
+      const mine = pointValue(board, p.x, p.y, color, rules);
+      if (!mine.legal) continue;
+      moves.push({ x: p.x, y: p.y, order: mine.value + pointValue(board, p.x, p.y, opp, rules).value * 0.85 });
+    }
+    return moves.sort((a, b) => b.order - a.order).slice(0, width);
+  }
+
+  function negamax(board, color, rules, depth, alpha, beta, ctx) {
+    if (Date.now() > ctx.deadline) throw TIMED_OUT;
+    if (fivePointsFor(board, color, rules).length) return WIN_SCORE + depth; // sooner wins score higher
+    const opp = Rules.opponent(color);
+    const theirFives = fivePointsFor(board, opp, rules);
+    if (theirFives.length > 1 && !theirFives.some(p => !Rules.isLegal(board, p.x, p.y, opp, rules))) return -WIN_SCORE - depth;
+    if (depth <= 0) return evaluate(board, color, rules);
+
+    const moves = theirFives.length
+      ? theirFives.filter(p => Rules.isLegal(board, p.x, p.y, color, rules))
+      : searchMoves(board, color, rules, ctx.width);
+    if (!moves.length) return theirFives.length ? -WIN_SCORE - depth : 0;
+
+    let best = -Infinity;
+    for (const m of moves) {
+      board[m.y][m.x] = color;
+      let score;
+      try {
+        score = -negamax(board, opp, rules, depth - 1, -beta, -alpha, ctx);
+      } finally {
+        board[m.y][m.x] = null;
+      }
+      if (score > best) best = score;
+      if (score > alpha) alpha = score;
+      if (alpha >= beta) break;
+    }
+    return best;
+  }
+
+  // Scores `moves` to the deepest depth that finishes in time and returns them best first.
+  // A depth cut off by the clock is thrown away, since its scores aren't comparable.
+  function searchRoot(board, color, rules, moves, level, deadline) {
+    const opp = Rules.opponent(color);
+    const ctx = { deadline, width: level.searchWidth };
+    let ranked = moves;
+    for (let depth = 2; depth <= level.searchDepth; depth += 2) {
+      const scored = [];
+      try {
+        for (const m of ranked) {
+          board[m.y][m.x] = color;
+          let score;
+          try {
+            score = -negamax(board, opp, rules, depth - 1, -Infinity, Infinity, ctx);
+          } finally {
+            board[m.y][m.x] = null;
+          }
+          scored.push({ ...m, total: score });
+        }
+      } catch (e) {
+        if (e === TIMED_OUT) break;
+        throw e;
+      }
+      ranked = scored.sort((a, b) => b.total - a.total);
+      if (ranked[0].total >= WIN_SCORE) break;
+    }
+    return ranked;
+  }
+
   // ---- choosing ----
   function pickTop(list, count, random) {
     if (count <= 1 || list.length === 1) {
@@ -472,6 +559,9 @@
       const sorted = head.filter(m => !m.opponentVcf).sort((a, b) => b.total - a.total);
       if (sorted.length) pool = sorted;
     }
+
+    // 5. hard: search the moves that are left
+    if (level.searchDepth) pool = searchRoot(work, color, rules, pool.slice(0, level.searchWidth), level, deadline);
 
     const pick = pickTop(pool, level.pickFrom, random);
     return { x: pick.x, y: pick.y };
