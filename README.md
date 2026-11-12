@@ -21,6 +21,8 @@ Gomoku (오목) in the browser. Play the computer, pass the device back and fort
 
 ## Status
 
+I started it in February 2026 wanting a gomoku game two friends could start by sharing a code, with nothing to install. I later added online rooms on Supabase and a pass-and-play mode after deciding the first design was bland; it's also why I bought my first domain.
+
 This is a side project. The Supabase project behind online play is currently paused, so the lobby says online rooms are unavailable. Playing the computer and pass-and-play don't need a server and work fully.
 
 ## Running it
@@ -81,6 +83,8 @@ Hard also skips moves that leave the opponent a VCF, then runs an alpha-beta sea
 ## 한국어
 
 브라우저에서 두는 오목입니다. 컴퓨터와 두거나, 한 기기에서 둘이 번갈아 두거나, 방 코드로 친구를 불러 온라인으로 둘 수 있습니다. 빌드 과정 없이 HTML, CSS, JavaScript로만 만들었습니다. 브라우저에서 바로 둘 수 있습니다: https://jayyo.github.io/gomoku/
+
+2026년 2월, 친구끼리 코드만 공유하면 설치 없이 바로 둘 수 있는 오목을 원해서 시작했습니다. 이후 Supabase 온라인 방과 한 기기에서 번갈아 두는 모드를 붙였고, 이 게임 때문에 처음으로 도메인도 샀습니다.
 
 - 컴퓨터 상대는 쉬움, 보통, 어려움 세 단계이고 Web Worker에서 돌아가서 인터넷 없이도 됩니다.
 - 자유룰과 렌주룰을 지원합니다. 렌주룰에서는 흑의 금수(삼삼, 사사, 장목)를 국제렌주연맹(RIF) 정의대로 판정하고 판 위에 ✕로 표시합니다.
